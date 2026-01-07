@@ -2,5 +2,24 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "./apps/backend/auth"
+    },
+    {
+      "path": "./apps/backend/projects"
+    },
+    {
+      "path": "./apps/backend/enrollment"
+    },
+    {
+      "path": "./apps/frontend/web"
+    },
+    {
+      "path": "./apps/frontend/desktop"
+    },
+    {
+      "path": "./libs/shared-types"
+    }
+  ]
 }

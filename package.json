@@ -17,6 +17,7 @@
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/cache-manager-redis-store": "^2.0.4",
     "@types/node": "20.19.9",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -39,13 +40,32 @@
     "libs/*"
   ],
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
+    "@nestjs/axios": "^4.0.1",
+    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/microservices": "^11.1.11",
+    "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/serve-static": "^5.0.4",
+    "@nestjs/swagger": "^11.2.4",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/multer": "^2.0.0",
+    "amqp-connection-manager": "^5.0.0",
+    "amqplib": "^0.10.9",
+    "axios": "^1.13.2",
+    "cache-manager": "^7.2.8",
+    "cache-manager-redis-yet": "^5.1.5",
+    "mongoose": "^9.1.2",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "6.29.0",
+    "react-router-dom": "^6.29.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.28"
   }
 }

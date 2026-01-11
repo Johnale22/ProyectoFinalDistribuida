@@ -20,6 +20,24 @@
     },
     {
       "path": "./libs/shared-types"
+    },
+    {
+      "path": "./apps/backend/audit"
+    },
+    {
+      "path": "./apps/backend/reporting"
+    },
+    {
+      "path": "./apps/backend/storage"
+    },
+    {
+      "path": "./apps/backend/location"
+    },
+    {
+      "path": "./apps/backend/validation"
+    },
+    {
+      "path": "./apps/backend/agreement"
     }
   ]
 }

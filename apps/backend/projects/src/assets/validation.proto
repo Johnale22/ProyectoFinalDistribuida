@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package validation;
+
+service ValidationService {
+  rpc ValidateStudent (StudentRequest) returns (ValidationResponse);
+}
+
+message StudentRequest {
+  string studentName = 1;
+}
+
+message ValidationResponse {
+  bool allowed = 1;
+  string reason = 2;
+  int32 semester = 3;
+}

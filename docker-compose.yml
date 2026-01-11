@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   # 1. Base de Datos Relacional (SQL)
-  # Requerimiento: Base principal para integridad (Usuarios, Proyectos)
   postgres:
     image: postgres:15-alpine
     container_name: uce_postgres
@@ -15,9 +14,10 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vinculacion_net
 
   # 2. Base de Datos Documental (NoSQL)
-  # Requerimiento: Para Logs, Auditoría y Metadatos de Archivos
   mongo:
     image: mongo:6.0
     container_name: uce_mongo
@@ -29,19 +29,22 @@ services:
       - '27017:27017'
     volumes:
       - mongo_data:/data/db
+    networks:
+      - vinculacion_net
 
   # 3. Base de Datos en Caché (Key-Value)
-  # Requerimiento: "one must be cache"
   redis:
     image: redis:7-alpine
     container_name: uce_redis
     restart: always
     ports:
       - '6379:6379'
-    command: redis-server --requirepass adminpassword
+    # Nota: Quitamos la contraseña por ahora para facilitar la conexión local
+    # Si quieres ponerla, usa: command: redis-server --requirepass adminpassword
+    networks:
+      - vinculacion_net
 
   # 4. Message Broker (Event Driven)
-  # Requerimiento: "Mandatory Kafka, Rabbit"
   rabbitmq:
     image: rabbitmq:3-management
     container_name: uce_rabbitmq
@@ -50,13 +53,37 @@ services:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: adminpassword
     ports:
-      - '5672:5672'   # Puerto para que NestJS se conecte
-      - '15672:15672' # Puerto para que TU veas el panel web
+      - '5672:5672'   # Puerto para NestJS
+      - '15672:15672' # Panel Web
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - vinculacion_net
 
-# Volúmenes para que los datos no se borren al apagar la PC
+  # 5. Automatización de Procesos (Req #20)
+  n8n:
+    image: n8nio/n8n
+    container_name: vinculacion_n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - vinculacion_net
+
+# Definición de la red compartida
+networks:
+  vinculacion_net:
+    driver: bridge
+
+# Volúmenes persistentes
 volumes:
   postgres_data:
   mongo_data:
   rabbitmq_data:
+  n8n_data:

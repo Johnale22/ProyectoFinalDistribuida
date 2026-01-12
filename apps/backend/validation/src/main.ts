@@ -4,13 +4,13 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 
 async function bootstrap() {
-  // Creamos el microservicio gRPC
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.GRPC,
     options: {
-      package: 'validation', // Debe coincidir con el .proto
-      protoPath: join(__dirname, 'app/validation.proto'), // Ruta al archivo
-      url: 'localhost:5000', // Puerto gRPC (diferente al HTTP)
+      package: 'validation',
+      // CORRECCIÓN AQUÍ: Apunta a la carpeta 'assets'
+      protoPath: join(__dirname, 'assets/validation.proto'), 
+      url: 'localhost:5000',
     },
   });
 

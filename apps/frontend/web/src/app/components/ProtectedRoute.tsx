@@ -1,27 +1,31 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 interface Props {
-  allowedRoles: string[]; // Lista de roles permitidos (ej. ['tutor', 'admin'])
+  allowedRoles: string[]; // Ejemplo: ['admin', 'student']
 }
 
 export const ProtectedRoute = ({ allowedRoles }: Props) => {
-  // 1. Leemos quién es el usuario actual
-  const userRole = localStorage.getItem('userRole');
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('role'); // Ojo: Esto viene del backend (ej: 'ADMIN')
 
-  // 2. Si no ha iniciado sesión, lo mandamos al Login
-  if (!userRole) {
+  console.log(`🛡️ GUARDIA: Revisando acceso. Rol actual: '${userRole}'. Roles permitidos:`, allowedRoles);
+
+  // 1. Si no hay token, fuera.
+  if (!token || !userRole) {
+    console.warn("⛔ No hay token o rol. Redirigiendo a Login.");
     return <Navigate to="/" replace />;
   }
 
-  // 3. Si tiene un rol, pero NO es el permitido (ej. Estudiante queriendo entrar a Tutor)
-  if (!allowedRoles.includes(userRole)) {
-    alert('⛔ ACCESO DENEGADO: No tienes permisos para ver esta página.');
-    // Lo devolvemos a su panel correspondiente según su rol real
-    if (userRole === 'student') return <Navigate to="/student" replace />;
-    if (userRole === 'tutor') return <Navigate to="/tutor" replace />;
-    return <Navigate to="/" replace />;
+  // 2. Normalizar a mayúsculas para evitar errores (admin vs ADMIN)
+  const currentRoleUpper = userRole.toUpperCase();
+  const allowedRolesUpper = allowedRoles.map(r => r.toUpperCase());
+
+  // 3. Verificar si el rol está permitido
+  if (!allowedRolesUpper.includes(currentRoleUpper)) {
+    console.warn(`⛔ Acceso Denegado. El rol '${currentRoleUpper}' no está en la lista permitida.`);
+    return <Navigate to="/" replace />; // O podrías mandarlo a una página "403 Unauthorized"
   }
 
-  // 4. Si pasa todas las pruebas, ¡Adelante! Renderiza la página hija
+  // 4. Si pasa, renderizar la página hija
   return <Outlet />;
 };

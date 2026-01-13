@@ -8,9 +8,10 @@ export class AppController {
 
   // --- PARTE 1: RabbitMQ (Escribe) ---
   @EventPattern('student_enrolled')
-  async handleEnrollment(@Payload() data: any) {
-    console.log('⚡ RabbitMQ: Guardando inscripción en Mongo:', data.studentName);
-    await this.appService.createEnrollment(data);
+  async handleStudentEnrolled(@Payload() data: any) {
+    console.log('🐰 [Enrollment] Evento recibido:', data);
+    // Aquí deberías guardar en MongoDB (si tienes el servicio configurado)
+    // this.enrollmentService.create(data);
   }
 
   // --- PARTE 2: HTTP (Lee) ---

@@ -1,22 +1,27 @@
-import { Controller, Get, Inject } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { AppService } from './app.service';
 
-@Controller()
+@Controller('auth') // <--- IMPORTANTE: prefijo 'auth'
 export class AppController {
-  // Inyectamos el cliente que configuramos en el Module
-  constructor(@Inject('ENROLLMENT_SERVICE') private client: ClientProxy) {}
+  constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getData() {
-    // 1. Enviamos el mensaje a la cola (Event Pattern)
-    // El primer argumento 'nuevo_usuario' es el "Asunto" del mensaje
-    // El segundo argumento es el "Cuerpo" (los datos)
-    this.client.emit('nuevo_usuario', { 
-      nombre: 'John Doe', 
-      email: 'john@uce.edu.ec',
-      fecha: new Date() 
-    });
+  @Post('login')
+  async login(@Body() body: any) {
+    console.log("📨 Petición recibida desde Frontend:", body);
 
-    return { message: 'Mensaje enviado a RabbitMQ. ¡Revisa la otra terminal!' };
+    // 1. Validar credenciales
+    const user = await this.appService.validateUser(body.username, body.password);
+    
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // 2. Generar Token
+    return this.appService.login(user);
+  }
+
+  @Post('register')
+  async register(@Body() body: any) {
+    return this.appService.register(body);
   }
 }

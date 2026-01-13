@@ -1,163 +1,138 @@
 import { useState, useEffect } from 'react';
-
-// Interfaz del Proyecto
-interface Project { 
-  id: string; 
-  title: string; 
-  description: string; 
-  max_quota: number; 
-  enrolled: number; 
-}
+import { useNavigate } from 'react-router-dom';
 
 export const StudentDashboard = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const navigate = useNavigate();
+  const user = localStorage.getItem('user') || 'Estudiante';
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'projects', 'my_projects', 'geo'
+  const [projects, setProjects] = useState<any[]>([]);
 
-  // 1. Cargar Proyectos
-  const fetchProjects = async () => {
-    try {
-      const res = await fetch('http://localhost:3001/api/projects');
-      const data = await res.json();
-      setProjects(data);
-    } catch (err) {
-      console.error("Error cargando proyectos");
-    }
+  const logout = () => { localStorage.clear(); navigate('/'); };
+
+  useEffect(() => {
+    // Simular carga de proyectos
+    setProjects([
+        { id: 1, title: 'Vinculación Barrio Obrero', desc: 'Capacitación contable', status: 'Disponible' },
+        { id: 2, title: 'Apoyo Escolar Rural', desc: 'Clases de matemáticas', status: 'Inscrito' } // Uno ya inscrito para probar subir archivos
+    ]);
+  }, []);
+
+  const handleUpload = (type: string, projectId: number) => {
+    // Aquí conectarías con Storage Service
+    alert(`📂 Subiendo ${type} para el proyecto ID ${projectId} al Storage Service (MinIO)...`);
   };
 
-  useEffect(() => { fetchProjects(); }, []);
-
-  // 2. Manejar Inscripción
-  const handleEnroll = async (id: string) => {
-    if(!confirm('¿Postularse?')) return;
-    
-    const realName = localStorage.getItem('userName') || 'Anónimo';
-
-    try {
-      await fetch(`http://localhost:3001/api/projects/${id}/enroll`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ studentName: realName }) 
-      });
-      fetchProjects(); 
-      alert('✅ Solicitud enviada correctamente');
-    } catch (e) {
-      alert('Error al inscribirse');
-    }
-  };
-
-  // 3. Manejar Subida de Archivos (NUEVO)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    
-    const file = e.target.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      // Conectamos al Storage Service (Puerto 3005)
-      const res = await fetch('http://localhost:3005/storage/upload', {
-        method: 'POST',
-        body: formData, 
-      });
-      
-      const data = await res.json();
-      
-      if (data.url) {
-        alert('✅ Archivo subido con éxito!\nURL: ' + data.url);
-        // Aquí podrías guardar 'data.url' en la base de datos si quisieras
-      }
-    } catch (error) {
-      alert('Error al subir archivo. ¿Está corriendo el Storage Service (3005)?');
-    }
-  };
-
-  const [geoProjects, setGeoProjects] = useState<any[]>([]);
-
-  const handleGeoSearch = () => {
-    if (!navigator.geolocation) {
-      alert("Tu navegador no soporta geolocalización");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords;
-    // Simular ubicación UCE si estás muy lejos (opcional, para demo)
-    // const lat = -0.1923; const lng = -78.4950;
-
-      try {
-        const res = await fetch(`http://localhost:3006/geo/nearby?lat=${latitude}&lng=${longitude}`);
-        const data = await res.json();
-        setGeoProjects(data);
-        alert("📍 ¡Ubicación detectada! Proyectos ordenados por cercanía.");
-      } catch (e) {
-        console.error(e);
-      }
-    }, () => {
-      alert("No pudimos obtener tu ubicación. Activa el GPS.");
-    });
-  };
-  // --- RENDERIZADO (HTML) ---
   return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ color: '#28a745' }}>🎓 Panel del Estudiante</h1>
-      
-      {/* SECCIÓN 1: LISTA DE PROYECTOS */}
-      <h3>Proyectos Disponibles</h3>
-      <div style={{ display: 'grid', gap: '15px', marginBottom: '40px' }}>
-        {projects.map(p => (
-          <div key={p.id} style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>{p.title}</h4>
-            <p style={{ color: '#666', fontSize: '0.95em' }}>{p.description}</p>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-              <span style={{ background: '#e9ecef', padding: '4px 10px', borderRadius: '20px', fontSize: '0.85em', color: '#495057' }}>
-                Disponibles: {p.max_quota - p.enrolled}
-              </span>
-              <button 
-                onClick={() => handleEnroll(p.id)} 
-                style={{ background: '#007bff', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                Postular
-              </button>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f6f9' }}>
+      <Header user={user} logout={logout} subtitle="PORTAL ESTUDIANTIL" />
+
+      <nav style={{ background: '#004a87', padding: '0 40px', display: 'flex', gap: '30px', height: '50px', alignItems: 'center' }}>
+        <NavButton label="👤 Mis Datos" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+        <NavButton label="📋 Oferta Proyectos" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
+        <NavButton label="📂 Mis Inscripciones" active={activeTab === 'my_projects'} onClick={() => setActiveTab('my_projects')} />
+        <NavButton label="📍 Búsqueda Geográfica" active={activeTab === 'geo'} onClick={() => setActiveTab('geo')} />
+      </nav>
+
+      <div style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        
+        {/* === PERFIL === */}
+        {activeTab === 'profile' && (
+           <div>
+             <SectionTitle title="Ficha del Estudiante" />
+             <div style={cardStyle}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                    <InfoField label="Nombres:" value="Juan Fernando" />
+                    <InfoField label="Apellidos:" value="Pérez Lopez" />
+                    <InfoField label="Cédula:" value="1720000001" />
+                    <InfoField label="Correo:" value="jperez@uce.edu.ec" />
+                    <InfoField label="Facultad:" value="Ingeniería y Ciencias Aplicadas" />
+                    <InfoField label="Carrera:" value="Sistemas de Información" />
+                    <InfoField label="Barrio:" value="Carcelén" />
+                </div>
+             </div>
+           </div>
+        )}
+
+        {/* === OFERTA === */}
+        {activeTab === 'projects' && (
+          <div>
+            <SectionTitle title="Proyectos Disponibles para Postulación" />
+            <div style={{display:'grid', gap:'20px'}}>
+                {projects.filter(p => p.status === 'Disponible').map(p => (
+                    <div key={p.id} style={cardStyle}>
+                        <h4>{p.title}</h4>
+                        <p>{p.desc}</p>
+                        <button style={btnStyle} onClick={() => alert('Enviando solicitud a Enrollment Service...')}>Postularse</button>
+                    </div>
+                ))}
             </div>
           </div>
-        ))}
-        {projects.length === 0 && <p>No hay proyectos cargados.</p>}
+        )}
+
+        {/* === MIS INSCRIPCIONES (SUBIDA DE ARCHIVOS) === */}
+        {activeTab === 'my_projects' && (
+          <div>
+            <SectionTitle title="Gestión de Documentación (Storage Service)" />
+            {projects.filter(p => p.status === 'Inscrito').map(p => (
+                <div key={p.id} style={{...cardStyle, borderLeft: '5px solid #28a745'}}>
+                    <h4 style={{marginTop:0}}>{p.title} <span style={{fontSize:'12px', background:'#28a745', color:'white', padding:'2px 8px', borderRadius:'10px'}}>INSCRITO</span></h4>
+                    <p style={{fontSize:'13px', color:'#666'}}>Por favor suba la documentación en formato PDF.</p>
+                    
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px'}}>
+                        <div style={{border:'1px dashed #ccc', padding:'15px', borderRadius:'4px'}}>
+                            <label style={{display:'block', fontWeight:'bold', marginBottom:'10px'}}>📄 Hoja de Registro</label>
+                            <input type="file" accept=".pdf" onChange={() => handleUpload('Registro', p.id)} />
+                        </div>
+                        <div style={{border:'1px dashed #ccc', padding:'15px', borderRadius:'4px'}}>
+                            <label style={{display:'block', fontWeight:'bold', marginBottom:'10px'}}>Evidence (Fotos/Informe)</label>
+                            <input type="file" accept=".pdf" onChange={() => handleUpload('Evidencia', p.id)} />
+                        </div>
+                    </div>
+                </div>
+            ))}
+          </div>
+        )}
+
+        {/* === GEOLOCALIZACIÓN === */}
+        {activeTab === 'geo' && (
+           <div>
+             <SectionTitle title="Mapa de Proyectos (Location Service)" />
+             <div style={{background:'#e9ecef', height:'500px', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #ccc'}}>
+                 <div style={{textAlign:'center'}}>
+                     <div style={{fontSize:'60px'}}>🗺️</div>
+                     <h3>Mapa Interactivo</h3>
+                     <p>Aquí se cargará la API de Leaflet/Google Maps</p>
+                     <button style={btnStyle}>🔍 Buscar Proyectos en mi Zona</button>
+                 </div>
+             </div>
+           </div>
+        )}
+
       </div>
-
-      {/* SECCIÓN 2: SUBIR EVIDENCIAS (NUEVO) */}
-      <div style={{ borderTop: '2px dashed #ccc', paddingTop: '20px', marginTop: '40px' }}>
-        <h3 style={{ color: '#17a2b8' }}>📂 Gestión de Evidencias</h3>
-        <p style={{ fontSize: '0.9em', color: '#555' }}>
-          Sube aquí tu reporte mensual firmado o carta de compromiso (PDF o Imagen).
-        </p>
-        
-        <input 
-          type="file" 
-          onChange={handleFileUpload}
-          style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '5px', background: '#f8f9fa', width: '100%' }} 
-        />
-      </div>
-
-       {/* SECCIÓN GEOLOCALIZACIÓN (NUEVO) */}
-      <div style={{ background: '#e3f2fd', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-      <h3 style={{ margin: '0 0 10px 0', color: '#0d47a1' }}>🌍 Búsqueda por Cercanía</h3>
-      <button onClick={handleGeoSearch} style={{ cursor: 'pointer', padding: '8px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px' }}>
-        📍 Usar mi GPS para buscar
-      </button>
-
-      {geoProjects.length > 0 && (
-        <ul style={{ marginTop: '10px', background: 'white', padding: '10px', borderRadius: '5px' }}>
-          {geoProjects.map((gp: any) => (
-            <li key={gp.id} style={{ listStyle: 'none', borderBottom: '1px solid #eee', padding: '5px' }}>
-              <strong>{gp.name}</strong> - a <span style={{ color: 'red' }}>{gp.distance_km} km</span> de ti.
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-     
+      <Footer />
     </div>
   );
 };
 
-export default StudentDashboard;
+// --- COMPONENTES AUXILIARES ---
+const InfoField = ({label, value}: any) => ( <div style={{borderBottom:'1px solid #eee', paddingBottom:'5px'}}><span style={{fontWeight:'bold', display:'block', color:'#555'}}>{label}</span><span>{value}</span></div> );
+const Header = ({ user, logout, subtitle }: any) => (
+  <div style={{ background: 'white', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#004a87', fontStyle: 'italic', fontFamily: 'serif' }}>UCE</div>
+      <div style={{ borderLeft: '1px solid #ccc', paddingLeft: '15px' }}>
+        <h2 style={{ fontSize: '18px', margin: 0, color: '#0056b3' }}>Sistema Académico</h2>
+        <small style={{ color: '#666' }}>{subtitle}</small>
+      </div>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '14px' }}>
+      <span style={{ fontWeight: 'bold', color: '#555' }}>{user.toUpperCase()}</span>
+      <button onClick={logout} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Salir</button>
+    </div>
+  </div>
+);
+const NavButton = ({ label, active, onClick }: any) => ( <button onClick={onClick} style={{ background: 'none', border: 'none', color: 'white', opacity: active ? 1 : 0.7, borderBottom: active ? '2px solid white' : '2px solid transparent', fontWeight: active ? 'bold' : 'normal', cursor: 'pointer', padding: '13px 0', fontSize: '14px' }}>{label}</button> );
+const SectionTitle = ({ title }: any) => ( <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}><div style={{ width: '4px', height: '24px', background: '#d90000', marginRight: '10px' }}></div><h2 style={{ fontSize: '18px', color: '#333', margin: 0 }}>{title}</h2></div> );
+const Footer = () => <footer style={{ background: '#333', color: 'white', textAlign: 'center', padding: '10px', fontSize: '12px' }}>Sistema de Vinculación UCE</footer>;
+const cardStyle = { background: 'white', padding: '30px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
+const btnStyle = { background: '#004a87', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '4px', cursor: 'pointer' };

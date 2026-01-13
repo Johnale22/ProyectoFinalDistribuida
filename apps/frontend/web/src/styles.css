@@ -1,1 +1,45 @@
 /* You can add global styles to this file, and also import other style files */
+/* RESET BÁSICO */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+body { background-color: #f4f6f9; }
+
+/* VARIABLES UCE */
+:root {
+  --uce-blue: #007bff; /* Azul brillante */
+  --uce-dark-blue: #0056b3; /* Azul oscuro header */
+  --uce-header-gradient: linear-gradient(90deg, #009fe3 0%, #004884 100%);
+  --uce-red: #d90000; /* Línea roja */
+  --text-gray: #666;
+}
+
+/* CLASES DE UTILIDAD */
+.btn-primary {
+  background-color: #004a87;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 16px;
+  font-weight: bold;
+}
+.btn-primary:hover { background-color: #003366; }
+
+.link-uce { color: #004a87; text-decoration: none; font-size: 14px; }
+.link-uce:hover { text-decoration: underline; }
+
+/* HEADER INSTITUCIONAL (Como en la foto) */
+.uce-header {
+  background: var(--uce-header-gradient);
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.uce-header h1 { font-size: 1.5rem; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+.uce-header-red-line { background-color: var(--uce-red); height: 5px; width: 100%; position: absolute; bottom: 0; }

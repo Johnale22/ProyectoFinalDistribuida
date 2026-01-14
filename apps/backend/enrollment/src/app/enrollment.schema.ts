@@ -5,20 +5,10 @@ export type EnrollmentDocument = HydratedDocument<Enrollment>;
 
 @Schema()
 export class Enrollment {
-  @Prop({ required: true })
-  studentName: string;
-
-  @Prop({ required: true })
-  projectTitle: string;
-
-  @Prop({ required: true })
-  projectId: string;
-
-  @Prop({ default: 'PENDIENTE' }) // Estado para que el Tutor apruebe luego
-  status: string;
-
-  @Prop({ default: Date.now })
-  date: Date;
+  @Prop() studentName: string;
+  @Prop() projectId: number;
+  @Prop() projectTitle: string;
+  @Prop({ default: 'PENDING' }) status: string;
 }
 
 export const EnrollmentSchema = SchemaFactory.createForClass(Enrollment);

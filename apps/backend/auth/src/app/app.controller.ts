@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, Get, Param, NotFoundException } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller('auth') // <--- IMPORTANTE: prefijo 'auth'
@@ -23,5 +23,16 @@ export class AppController {
   @Post('register')
   async register(@Body() body: any) {
     return this.appService.register(body);
+  }
+
+  @Get('profile/:username')
+  async getProfile(@Param('username') username: string) {
+    const user = await this.appService.getUser(username);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    // Quitamos la contraseña antes de enviarlo
+    const { password, ...result } = user;
+    return result;
   }
 }

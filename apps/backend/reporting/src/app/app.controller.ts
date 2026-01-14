@@ -1,15 +1,18 @@
-import { Controller, Get, UseInterceptors } from '@nestjs/common';
-import { CacheInterceptor } from '@nestjs/cache-manager'; // <--- Importante
+import { Controller, Get } from '@nestjs/common';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { AppService } from './app.service';
 
 @Controller('reports')
-@UseInterceptors(CacheInterceptor)
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('dashboard')
+  @Get()
   getStats() {
-    console.log("📊 Generando reporte desde BD...");
-    return this.appService.getDashboardStats();
+    return this.appService.getStats();
+  }
+
+  @EventPattern('enrollment_approved')
+  handleEnrollmentApproved(@Payload() data: any) {
+    this.appService.updateStat(data.projectId);
   }
 }

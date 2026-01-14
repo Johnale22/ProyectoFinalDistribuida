@@ -1,136 +1,188 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import api from '../api/axios';
+
+// Fix iconos Leaflet (Mapa)
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
+L.Marker.prototype.options.icon = DefaultIcon;
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
-  const user = localStorage.getItem('user') || 'Estudiante';
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'projects', 'my_projects', 'geo'
-  const [projects, setProjects] = useState<any[]>([]);
+  const currentUser = localStorage.getItem('user'); 
+  
+  const [activeTab, setActiveTab] = useState('profile');
+  const [projects, setProjects] = useState<any[]>([]); // Proyectos Disponibles (3001)
+  const [myProjects, setMyProjects] = useState<any[]>([]); // Mis Inscripciones (3002)
+  const [userData, setUserData] = useState<any>(null);
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
+  // 1. CARGAR PERFIL (Auth - 3000)
   useEffect(() => {
-    // Simular carga de proyectos
-    setProjects([
-        { id: 1, title: 'Vinculación Barrio Obrero', desc: 'Capacitación contable', status: 'Disponible' },
-        { id: 2, title: 'Apoyo Escolar Rural', desc: 'Clases de matemáticas', status: 'Inscrito' } // Uno ya inscrito para probar subir archivos
-    ]);
+    if (currentUser) {
+      fetch(`http://localhost:3000/auth/profile/${currentUser}`)
+        .then(res => res.json())
+        .then(data => setUserData(data))
+        .catch(console.error);
+    }
+  }, [currentUser]);
+
+  // 2. CARGAR PROYECTOS DISPONIBLES (Projects - 3001)
+  useEffect(() => {
+    fetch('http://localhost:3001/projects')
+      .then(r => r.json())
+      .then(d => { if(Array.isArray(d)) setProjects(d); })
+      .catch(console.error);
   }, []);
 
-  const handleUpload = (type: string, projectId: number) => {
-    // Aquí conectarías con Storage Service
-    alert(`📂 Subiendo ${type} para el proyecto ID ${projectId} al Storage Service (MinIO)...`);
+  // 3. CARGAR MIS INSCRIPCIONES (Enrollment - 3002)
+  useEffect(() => {
+    if (currentUser && activeTab === 'my_projects') {
+        fetch(`http://localhost:3002/enrollments/student/${currentUser}`)
+            .then(r => r.json())
+            .then(data => setMyProjects(data))
+            .catch(console.error);
+    }
+  }, [currentUser, activeTab]);
+
+  // --- CORRECCIÓN CLAVE AQUÍ ---
+  const handleEnroll = async (project: any) => {
+    if(!window.confirm(`¿Confirmar postulación a: ${project.title}?`)) return;
+    
+    try {
+        // ENVIAMOS A PUERTO 3002 (Enrollment Service)
+        const res = await fetch(`http://localhost:3002/enrollments`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                projectId: project.id,       // ID del proyecto (Viene de Postgres)
+                projectTitle: project.title, // Título (Para guardar en Mongo)
+                studentName: currentUser     // Cédula del estudiante
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            alert("✅ " + data.message);
+        } else {
+            alert("⚠️ " + (data.message || "Error desconocido"));
+        }
+    } catch(e) { 
+        console.error(e);
+        alert("Error de conexión con Enrollment Service (Puerto 3002). Asegúrate de que esté corriendo."); 
+    }
+  };
+
+  const handleUpload = (type: string) => {
+    alert(`📂 Subiendo ${type} al Storage Service...`);
   };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f6f9' }}>
-      <Header user={user} logout={logout} subtitle="PORTAL ESTUDIANTIL" />
+      <Header user={currentUser || 'Estudiante'} logout={logout} subtitle="PORTAL ESTUDIANTIL" />
 
       <nav style={{ background: '#004a87', padding: '0 40px', display: 'flex', gap: '30px', height: '50px', alignItems: 'center' }}>
         <NavButton label="👤 Mis Datos" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
         <NavButton label="📋 Oferta Proyectos" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
         <NavButton label="📂 Mis Inscripciones" active={activeTab === 'my_projects'} onClick={() => setActiveTab('my_projects')} />
-        <NavButton label="📍 Búsqueda Geográfica" active={activeTab === 'geo'} onClick={() => setActiveTab('geo')} />
+        <NavButton label="📍 Mapa" active={activeTab === 'geo'} onClick={() => setActiveTab('geo')} />
       </nav>
 
       <div style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         
-        {/* === PERFIL === */}
+        {/* PERFIL */}
         {activeTab === 'profile' && (
-           <div>
-             <SectionTitle title="Ficha del Estudiante" />
-             <div style={cardStyle}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
-                    <InfoField label="Nombres:" value="Juan Fernando" />
-                    <InfoField label="Apellidos:" value="Pérez Lopez" />
-                    <InfoField label="Cédula:" value="1720000001" />
-                    <InfoField label="Correo:" value="jperez@uce.edu.ec" />
-                    <InfoField label="Facultad:" value="Ingeniería y Ciencias Aplicadas" />
-                    <InfoField label="Carrera:" value="Sistemas de Información" />
-                    <InfoField label="Barrio:" value="Carcelén" />
-                </div>
-             </div>
+           <div style={cardStyle}>
+                {userData ? (
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                        <InfoField label="Cédula:" value={userData.username} />
+                        <InfoField label="Nombres:" value={userData.fullName} />
+                        <InfoField label="Facultad:" value={userData.faculty} />
+                        <InfoField label="Carrera:" value={userData.career} />
+                    </div>
+                ) : <p>Cargando datos...</p>}
            </div>
         )}
 
-        {/* === OFERTA === */}
+        {/* PROYECTOS (Aquí estaba el botón problemático) */}
         {activeTab === 'projects' && (
-          <div>
-            <SectionTitle title="Proyectos Disponibles para Postulación" />
-            <div style={{display:'grid', gap:'20px'}}>
-                {projects.filter(p => p.status === 'Disponible').map(p => (
-                    <div key={p.id} style={cardStyle}>
-                        <h4>{p.title}</h4>
-                        <p>{p.desc}</p>
-                        <button style={btnStyle} onClick={() => alert('Enviando solicitud a Enrollment Service...')}>Postularse</button>
-                    </div>
-                ))}
-            </div>
+          <div style={{display:'grid', gap:'20px'}}>
+              {projects.map((p: any) => (
+                  <div key={p.id} style={cardStyle}>
+                      <h4>{p.title}</h4>
+                      <p>{p.description}</p>
+                      <div style={{display:'flex', justifyContent:'space-between', marginTop:'10px'}}>
+                          <small>Cupos ocupados: {p.enrolled}</small>
+                          {/* Llamamos a la función corregida pasando todo el objeto 'p' */}
+                          <button style={btnStyle} onClick={() => handleEnroll(p)}>Postularse</button>
+                      </div>
+                  </div>
+              ))}
           </div>
         )}
 
-        {/* === MIS INSCRIPCIONES (SUBIDA DE ARCHIVOS) === */}
+        {/* MIS INSCRIPCIONES (Estado PENDIENTE/APROBADO) */}
         {activeTab === 'my_projects' && (
           <div>
-            <SectionTitle title="Gestión de Documentación (Storage Service)" />
-            {projects.filter(p => p.status === 'Inscrito').map(p => (
-                <div key={p.id} style={{...cardStyle, borderLeft: '5px solid #28a745'}}>
-                    <h4 style={{marginTop:0}}>{p.title} <span style={{fontSize:'12px', background:'#28a745', color:'white', padding:'2px 8px', borderRadius:'10px'}}>INSCRITO</span></h4>
-                    <p style={{fontSize:'13px', color:'#666'}}>Por favor suba la documentación en formato PDF.</p>
-                    
-                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px'}}>
-                        <div style={{border:'1px dashed #ccc', padding:'15px', borderRadius:'4px'}}>
-                            <label style={{display:'block', fontWeight:'bold', marginBottom:'10px'}}>📄 Hoja de Registro</label>
-                            <input type="file" accept=".pdf" onChange={() => handleUpload('Registro', p.id)} />
+            <SectionTitle title="Estado de mis Postulaciones" />
+            {myProjects.length === 0 ? (
+                <div style={cardStyle}><p>No te has postulado a ningún proyecto aún.</p></div>
+            ) : (
+                myProjects.map((insc: any) => (
+                    <div key={insc._id} style={{...cardStyle, borderLeft: insc.status === 'APPROVED' ? '5px solid #28a745' : '5px solid #ffc107', marginBottom:'20px'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                            <h4 style={{margin:0}}>{insc.projectTitle}</h4>
+                            {insc.status === 'APPROVED' 
+                                ? <span style={badgeSuccess}>APROBADO</span>
+                                : <span style={badgeWarning}>PENDIENTE DE TUTOR</span>
+                            }
                         </div>
-                        <div style={{border:'1px dashed #ccc', padding:'15px', borderRadius:'4px'}}>
-                            <label style={{display:'block', fontWeight:'bold', marginBottom:'10px'}}>Evidence (Fotos/Informe)</label>
-                            <input type="file" accept=".pdf" onChange={() => handleUpload('Evidencia', p.id)} />
-                        </div>
+
+                        {insc.status === 'APPROVED' ? (
+                            <div style={{marginTop:'20px'}}>
+                                <p style={{fontSize:'13px', color:'#666'}}>✅ Solicitud aceptada. Sube tus documentos.</p>
+                                <div style={{border:'1px dashed #ccc', padding:'15px', marginTop:'10px'}}>
+                                    <label style={{fontWeight:'bold', display:'block', marginBottom:'5px'}}>📄 Hoja de Registro</label>
+                                    <input type="file" onChange={() => handleUpload('Registro')} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{marginTop:'20px', padding:'10px', background:'#fff3cd', color:'#856404', borderRadius:'4px'}}>
+                                ⏳ Tu solicitud está siendo revisada por el Tutor.
+                            </div>
+                        )}
                     </div>
-                </div>
-            ))}
+                ))
+            )}
           </div>
         )}
 
-        {/* === GEOLOCALIZACIÓN === */}
+        {/* MAPA */}
         {activeTab === 'geo' && (
-           <div>
-             <SectionTitle title="Mapa de Proyectos (Location Service)" />
-             <div style={{background:'#e9ecef', height:'500px', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #ccc'}}>
-                 <div style={{textAlign:'center'}}>
-                     <div style={{fontSize:'60px'}}>🗺️</div>
-                     <h3>Mapa Interactivo</h3>
-                     <p>Aquí se cargará la API de Leaflet/Google Maps</p>
-                     <button style={btnStyle}>🔍 Buscar Proyectos en mi Zona</button>
-                 </div>
-             </div>
+           <div style={{ height: '500px', border: '2px solid #ccc' }}>
+                 <MapContainer center={[-0.205, -78.510]} zoom={14} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[-0.1998, -78.5055]}><Popup>UCE</Popup></Marker>
+                 </MapContainer>
            </div>
         )}
-
       </div>
       <Footer />
     </div>
   );
 };
 
-// --- COMPONENTES AUXILIARES ---
-const InfoField = ({label, value}: any) => ( <div style={{borderBottom:'1px solid #eee', paddingBottom:'5px'}}><span style={{fontWeight:'bold', display:'block', color:'#555'}}>{label}</span><span>{value}</span></div> );
-const Header = ({ user, logout, subtitle }: any) => (
-  <div style={{ background: 'white', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#004a87', fontStyle: 'italic', fontFamily: 'serif' }}>UCE</div>
-      <div style={{ borderLeft: '1px solid #ccc', paddingLeft: '15px' }}>
-        <h2 style={{ fontSize: '18px', margin: 0, color: '#0056b3' }}>Sistema Académico</h2>
-        <small style={{ color: '#666' }}>{subtitle}</small>
-      </div>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '14px' }}>
-      <span style={{ fontWeight: 'bold', color: '#555' }}>{user.toUpperCase()}</span>
-      <button onClick={logout} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Salir</button>
-    </div>
-  </div>
-);
+// ESTILOS AUXILIARES
+const badgeSuccess = { background:'#28a745', color:'white', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
+const badgeWarning = { background:'#ffc107', color:'black', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
+const InfoField = ({label, value}: any) => ( <div style={{borderBottom:'1px solid #eee', paddingBottom:'5px'}}><span style={{fontWeight:'bold', display:'block', color:'#555'}}>{label}</span><span style={{color:'#333'}}>{value || 'Sin asignar'}</span></div> );
+const Header = ({ user, logout, subtitle }: any) => ( <div style={{ background: 'white', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}><div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ fontSize: '28px', fontWeight: 'bold', color: '#004a87', fontStyle: 'italic', fontFamily: 'serif' }}>UCE</div><div style={{ borderLeft: '1px solid #ccc', paddingLeft: '15px' }}><h2 style={{ fontSize: '18px', margin: 0, color: '#0056b3' }}>Sistema Académico</h2><small style={{ color: '#666' }}>{subtitle}</small></div></div><div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '14px' }}><span style={{ fontWeight: 'bold', color: '#555' }}>{user.toUpperCase()}</span><button onClick={logout} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Salir</button></div></div> );
 const NavButton = ({ label, active, onClick }: any) => ( <button onClick={onClick} style={{ background: 'none', border: 'none', color: 'white', opacity: active ? 1 : 0.7, borderBottom: active ? '2px solid white' : '2px solid transparent', fontWeight: active ? 'bold' : 'normal', cursor: 'pointer', padding: '13px 0', fontSize: '14px' }}>{label}</button> );
 const SectionTitle = ({ title }: any) => ( <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}><div style={{ width: '4px', height: '24px', background: '#d90000', marginRight: '10px' }}></div><h2 style={{ fontSize: '18px', color: '#333', margin: 0 }}>{title}</h2></div> );
 const Footer = () => <footer style={{ background: '#333', color: 'white', textAlign: 'center', padding: '10px', fontSize: '12px' }}>Sistema de Vinculación UCE</footer>;

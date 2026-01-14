@@ -1,28 +1,22 @@
-import { Body, Controller, Get, Post, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { AppService } from './app.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'; // <--- IMPORTAR
 
-@ApiTags('Projects') // Agrupa los endpoints
 @Controller('projects')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  // --- HTTP (Para el Frontend) ---
   @Get()
-  @ApiOperation({ summary: 'Listar proyectos disponibles' }) // Descripción del botón
-  @ApiResponse({ status: 200, description: 'Devuelve array de proyectos.' })
-  getData() {
-    return this.appService.getAllProjects();
-  }
+  findAll() { return this.appService.findAll(); }
 
   @Post()
-  @ApiOperation({ summary: 'Crear nuevo proyecto (Solo Tutores)' })
-  create(@Body() body: any) {
-    return this.appService.createProject(body);
-  }
+  create(@Body() body: any) { return this.appService.create(body); }
 
-  @Post(':id/enroll')
-  @ApiOperation({ summary: 'Inscribir estudiante en un proyecto' })
-  enroll(@Param('id') id: string, @Body() body: { studentName: string }) {
-    return this.appService.enrollStudent(id, body.studentName || 'Estudiante Anónimo');
+  // --- RABBITMQ (Interno) ---
+  @EventPattern('enrollment_approved')
+  handleEnrollmentApproved(@Payload() data: any) {
+    // Recibimos el aviso de Enrollment y ejecutamos la lógica
+    this.appService.reduceQuota(data.projectId);
   }
 }

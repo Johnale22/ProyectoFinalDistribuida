@@ -1,23 +1,31 @@
-import { Controller, Get } from '@nestjs/common';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('enrollments') // Ruta HTTP: /enrollments
+@Controller('enrollments')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  // --- PARTE 1: RabbitMQ (Escribe) ---
-  @EventPattern('student_enrolled')
-  async handleStudentEnrolled(@Payload() data: any) {
-    console.log('🐰 [Enrollment] Evento recibido:', data);
-    // Aquí deberías guardar en MongoDB (si tienes el servicio configurado)
-    // this.enrollmentService.create(data);
+  // 1. Estudiante se postula
+  @Post()
+  create(@Body() body: any) {
+    return this.appService.create(body);
   }
 
-  // --- PARTE 2: HTTP (Lee) ---
-  // El Tutor usará esto para ver quién se inscribió
-  @Get()
-  async getEnrollments() {
-    return this.appService.getAllEnrollments();
+  // 2. Tutor: Ver SOLO los Pendientes (Esta es la que te faltaba)
+  @Get('pending')
+  getPending() {
+    return this.appService.findPending();
+  }
+
+  // 3. Tutor: Aprobar/Rechazar
+  @Post('manage')
+  manage(@Body() body: any) {
+    return this.appService.manage(body.id, body.status);
+  }
+
+  // 4. Estudiante: Ver sus inscripciones
+  @Get('student/:username')
+  getMyEnrollments(@Param('username') username: string) {
+    return this.appService.findMyEnrollments(username);
   }
 }

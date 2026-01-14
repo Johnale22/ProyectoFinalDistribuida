@@ -1,59 +1,44 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import { ClientsModule, Transport } from '@nestjs/microservices'; // <--- IMPORTANTE: Nuevo import
 import { User } from './user.entity';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
-    // 1. Base de Datos (Postgres)
+    // 1. Configuración de Base de Datos (Postgres) - INTACTA
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
       port: 5432,
       username: 'admin',
       password: 'adminpassword',
-      database: 'vinculacion_auth', // Asegúrate de que esta BD exista (ya la creamos)
+      database: 'vinculacion_auth',
       autoLoadEntities: true,
       synchronize: true,
     }),
     TypeOrmModule.forFeature([User]),
 
-    // 2. Comunicación con Microservicios (RabbitMQ)
-    ClientsModule.register([
-      // Este servicio (Auth) escuchando su propia cola
-      {
-        name: 'AUTH_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://admin:adminpassword@localhost:5672'],
-          queue: 'auth_queue',
-          queueOptions: { durable: false },
-        },
-      },
-      // --- CORRECCIÓN AQUÍ ---
-      // Agregamos ENROLLMENT_SERVICE porque tu Controller lo está pidiendo
-      {
-        name: 'ENROLLMENT_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://admin:adminpassword@localhost:5672'],
-          queue: 'enrollment_queue',
-          queueOptions: { durable: false },
-        },
-      },
-      // -----------------------
-    ]),
-
-    // 3. Seguridad (JWT)
-    PassportModule,
+    // 2. JWT - INTACTO
     JwtModule.register({
-      secret: 'secretKey', // En prod usar variables de entorno
-      signOptions: { expiresIn: '60m' },
+      secret: 'SECRET_KEY_TESIS',
+      signOptions: { expiresIn: '1d' },
     }),
+
+    // 3. NUEVO: Cliente RabbitMQ para hablar con Auditoría
+    ClientsModule.register([
+      {
+        name: 'AUDIT_SERVICE', // Nombre para inyectar en el servicio
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://admin:adminpassword@localhost:5672'],
+          queue: 'audit_queue', // La misma cola que escucha el Audit Service
+          queueOptions: { durable: false },
+        },
+      },
+    ]),
   ],
   controllers: [AppController],
   providers: [AppService],

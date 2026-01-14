@@ -6,21 +6,23 @@ export class User {
   id: number;
 
   @Column({ unique: true })
-  username: string; // Será el correo o usuario
+  username: string; // Cédula
 
   @Column()
   password: string;
 
-  @Column({ default: 'STUDENT' })
-  role: string; // 'STUDENT', 'TUTOR', 'COORDINATOR'
-
-  // --- NUEVOS CAMPOS ---
-  @Column({ nullable: true })
-  fullName: string; // Nombres y Apellidos
+  @Column()
+  role: string; // 'STUDENT', 'TUTOR', 'ADMIN', 'COORDINATOR'
 
   @Column({ nullable: true })
-  phone: string;
+  fullName: string;
 
   @Column({ nullable: true })
-  sector: string; // Para la geolocalización futura
+  faculty: string;
+
+  @Column({ nullable: true })
+  career: string;
+
+  @Column({ nullable: true })
+  semester: string;
 }

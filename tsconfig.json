@@ -25,9 +25,6 @@
       "path": "./apps/backend/audit"
     },
     {
-      "path": "./apps/backend/reporting"
-    },
-    {
       "path": "./apps/backend/storage"
     },
     {
@@ -37,7 +34,16 @@
       "path": "./apps/backend/validation"
     },
     {
-      "path": "./apps/backend/agreement"
+      "path": "./apps/backend"
+    },
+    {
+      "path": "./apps/backend/notification"
+    },
+    {
+      "path": "./apps/backend/reporting"
+    },
+    {
+      "path": "./apps/backend/api-gateway"
     }
   ]
 }

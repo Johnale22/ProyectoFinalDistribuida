@@ -1,0 +1,3 @@
+CREATE DATABASE vinculacion_auth;
+CREATE DATABASE vinculacion_projects;
+CREATE DATABASE vinculacion_agreements;

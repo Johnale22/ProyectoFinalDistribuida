@@ -1,31 +1,34 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Enrollment, EnrollmentDocument } from './reporting.schema';
+import { Report, ReportDocument } from './report.schema';
 
 @Injectable()
 export class AppService {
-  constructor(@InjectModel(Enrollment.name) private enrollmentModel: Model<EnrollmentDocument>) {}
+  constructor(
+    @InjectModel(Report.name) private reportModel: Model<ReportDocument>
+  ) {}
 
-  async getDashboardStats() {
-    // 1. Contar total
-    const total = await this.enrollmentModel.countDocuments();
+  async getStats() {
+    return this.reportModel.find().exec();
+  }
 
-    // 2. Agrupar por Proyecto (Cuántos alumnos tiene cada uno)
-    const byProject = await this.enrollmentModel.aggregate([
-      { $group: { _id: "$projectTitle", count: { $sum: 1 } } }
-    ]);
+  async updateStat(projectId: any) {
+    const title = `Proyecto ID #${projectId}`;
+    const report = await this.reportModel.findOne({ projectTitle: title });
 
-    // 3. Agrupar por Estado (Cuántos PENDIENTES vs APROBADOS)
-    const byStatus = await this.enrollmentModel.aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } }
-    ]);
-
-    return {
-      total_inscripciones: total,
-      por_proyecto: byProject,
-      estados: byStatus,
-      generated_at: new Date()
-    };
+    if (report) {
+        report.approvedCount += 1;
+        report.lastUpdated = new Date();
+        await report.save();
+    } else {
+        const newReport = new this.reportModel({
+            projectTitle: title,
+            approvedCount: 1,
+            lastUpdated: new Date()
+        });
+        await newReport.save();
+    }
+    console.log(`📈 ESTADÍSTICA ACTUALIZADA: ${title}`);
   }
 }

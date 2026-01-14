@@ -1,32 +1,25 @@
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
 
-  const config = new DocumentBuilder()
-    .setTitle('UCE Vinculación API')
-    .setDescription('Microservicio de gestión de Proyectos y Cupos')
-    .setVersion('1.0')
-    .addTag('projects')
-    .build();
-  
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document); // La documentación estará en /api/docs
-  
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`🚀 Project Service running on: http://localhost:${port}/${globalPrefix}`);
-  console.log(`📄 Swagger Docs available at: http://localhost:${port}/api/docs`);
+  // 1. HTTP (Puerto 3001)
+  app.enableCors({ origin: '*' });
 
-  Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
-  );
+  // 2. RabbitMQ (Escucha en la cola 'projects_queue')
+  app.connectMicroservice({
+    transport: Transport.RMQ,
+    options: {
+      urls: ['amqp://admin:adminpassword@localhost:5672'],
+      queue: 'projects_queue',
+      queueOptions: { durable: false },
+    },
+  });
+
+  await app.startAllMicroservices();
+  await app.listen(3001);
+  console.log(`🚀 PROJECTS SERVICE listo: HTTP:3001 + RabbitMQ Listening`);
 }
-
 bootstrap();

@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { AppService } from './app.service';
 
@@ -7,12 +7,7 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @EventPattern('notify_email')
-  handleEmailNotification(@Payload() data: any) {
+  handleEmail(@Payload() data: any) {
     this.appService.sendEmail(data);
-  }
-
-  @Get()
-  healthCheck() {
-    return { status: 'Notification Service OK' };
   }
 }

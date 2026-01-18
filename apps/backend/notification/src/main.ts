@@ -10,8 +10,10 @@ async function bootstrap() {
     transport: Transport.RMQ,
     options: {
       urls: ['amqp://admin:adminpassword@localhost:5672'],
-      queue: 'notification_queue',
-      queueOptions: { durable: false },
+      queue: 'notification_queue', // Debe coincidir con Enrollment
+      queueOptions: {
+        durable: false,
+      },
     },
   });
 

@@ -9,37 +9,22 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "webpack-cli build",
-          "args": [
-            "--node-env=production"
-          ],
+          "args": ["--node-env=production"],
           "cwd": "apps/backend/reporting"
         },
         "configurations": {
-          "development": {
-            "args": [
-              "--node-env=development"
-            ]
-          }
+          "development": { "args": ["--node-env=development"] }
         }
       },
       "serve": {
         "continuous": true,
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
-        "dependsOn": [
-          "build"
-        ],
-        "options": {
-          "buildTarget": "reporting:build",
-          "runBuildTargetDependencies": false
-        },
+        "dependsOn": ["build"],
+        "options": { "buildTarget": "reporting:build", "runBuildTargetDependencies": false },
         "configurations": {
-          "development": {
-            "buildTarget": "reporting:build:development"
-          },
-          "production": {
-            "buildTarget": "reporting:build:production"
-          }
+          "development": { "buildTarget": "reporting:build:development" },
+          "production": { "buildTarget": "reporting:build:production" }
         }
       }
     }
@@ -47,17 +32,13 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/mongoose": "^10.0.0",
     "@nestjs/microservices": "^11.0.0",
-    "mongoose": "^8.0.0",
-    "amqp-connection-manager": "^4.1.14",
+    "@nestjs/mongoose": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
     "amqplib": "^0.10.3",
+    "mongoose": "^8.0.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0"
-  },
-  "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
   }
 }

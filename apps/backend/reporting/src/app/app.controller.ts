@@ -6,13 +6,20 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
+  // API: Dashboard Coordinador llama aquí
+  @Get('stats')
   getStats() {
     return this.appService.getStats();
   }
 
-  @EventPattern('enrollment_approved')
-  handleEnrollmentApproved(@Payload() data: any) {
-    this.appService.updateStat(data.projectId);
+  // RABBITMQ: Escucha eventos invisibles
+  @EventPattern('enrollment_approved') // <--- Debe coincidir con lo que envía Enrollment
+  async handleEnrollment(@Payload() data: any) {
+    this.appService.handleApprovedEnrollment(data);
+  }
+  
+  @EventPattern('project_created')
+  async handleProject() {
+    this.appService.incrementProjects();
   }
 }

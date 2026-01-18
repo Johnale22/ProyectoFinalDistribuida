@@ -1,17 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { Document } from 'mongoose';
 
-export type ReportDocument = HydratedDocument<Report>;
+export type ReportDocument = Report & Document;
 
 @Schema()
 export class Report {
-  @Prop({ required: true })
-  projectTitle: string;
+  @Prop({ default: 'GLOBAL_STATS' }) // Usaremos un solo ID para estadísticas globales
+  type: string;
 
   @Prop({ default: 0 })
-  approvedCount: number;
+  totalStudents: number;
 
-  @Prop()
-  lastUpdated: Date;
+  @Prop({ default: 0 })
+  totalProjects: number;
+
+  @Prop({ default: 0 })
+  totalEnrollments: number; // Aprobados
+
+  @Prop({ default: 0 })
+  totalHours: number; // Horas convalidadas
 }
+
 export const ReportSchema = SchemaFactory.createForClass(Report);

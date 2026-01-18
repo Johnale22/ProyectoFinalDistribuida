@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import api from '../api/axios';
@@ -16,13 +16,18 @@ export const StudentDashboard = () => {
   const currentUser = localStorage.getItem('user'); 
   
   const [activeTab, setActiveTab] = useState('profile');
-  const [projects, setProjects] = useState<any[]>([]); // Proyectos Disponibles (3001)
-  const [myProjects, setMyProjects] = useState<any[]>([]); // Mis Inscripciones (3002)
+  const [projects, setProjects] = useState<any[]>([]); 
+  const [myProjects, setMyProjects] = useState<any[]>([]); 
   const [userData, setUserData] = useState<any>(null);
+
+  // --- NUEVOS ESTADOS PARA GEOLOCALIZACIÓN ---
+  const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [distance, setDistance] = useState<string | null>(null);
+  const UCE_COORDS = { lat: -0.1998, lng: -78.5055 }; // Coordenadas fijas de la UCE
+  // -------------------------------------------
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
-  // 1. CARGAR PERFIL (Auth - 3000)
   useEffect(() => {
     if (currentUser) {
       fetch(`http://localhost:3000/auth/profile/${currentUser}`)
@@ -32,7 +37,6 @@ export const StudentDashboard = () => {
     }
   }, [currentUser]);
 
-  // 2. CARGAR PROYECTOS DISPONIBLES (Projects - 3001)
   useEffect(() => {
     fetch('http://localhost:3001/projects')
       .then(r => r.json())
@@ -40,7 +44,6 @@ export const StudentDashboard = () => {
       .catch(console.error);
   }, []);
 
-  // 3. CARGAR MIS INSCRIPCIONES (Enrollment - 3002)
   useEffect(() => {
     if (currentUser && activeTab === 'my_projects') {
         fetch(`http://localhost:3002/enrollments/student/${currentUser}`)
@@ -54,54 +57,41 @@ export const StudentDashboard = () => {
     if(!window.confirm(`¿Confirmar postulación a: ${project.title}?`)) return;
     
     try {
-        // ENVIAMOS A PUERTO 3002 (Enrollment Service)
         const res = await fetch(`http://localhost:3002/enrollments`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                projectId: project.id,       // ID del proyecto (Viene de Postgres)
-                projectTitle: project.title, // Título (Para guardar en Mongo)
-                studentName: currentUser     // Cédula del estudiante
+                projectId: project.id,       
+                projectTitle: project.title, 
+                studentName: currentUser     
             })
         });
         
         const data = await res.json();
-        
-        if (data.success) {
-            alert("✅ " + data.message);
-        } else {
-            alert("⚠️ " + (data.message || "Error desconocido"));
-        }
+        if (data.success) alert("✅ " + data.message);
+        else alert("⚠️ " + (data.message || "Error desconocido"));
     } catch(e) { 
         console.error(e);
-        alert("Error de conexión con Enrollment Service (Puerto 3002). Asegúrate de que esté corriendo."); 
+        alert("Error de conexión con Enrollment Service."); 
     }
   };
 
-  // Función real de subida (CONECTADA CON MINIO)
   const handleFileUpload = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Crear el paquete de datos (FormData)
     const formData = new FormData();
-    formData.append('file', file); // 'file' debe coincidir con el backend
+    formData.append('file', file); 
     formData.append('studentId', currentUser || 'anonimo');
 
     try {
         alert("⏳ Subiendo archivo...");
-        
-        // Petición al Gateway (8080) -> Storage (3006)
         const res = await api.post('/storage/upload', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
 
-        // Axios devuelve la respuesta en .data
         if (res.data.success) {
-            alert(`✅ Archivo subido con éxito.\nURL: ${res.data.url}`);
-            console.log("URL del archivo:", res.data.url);
-
-            // --- NUEVO BLOQUE: ACTUALIZAR URL EN BASE DE DATOS (Enrollment) ---
+            alert(`✅ Archivo subido con éxito.`);
             try {
                 await fetch('http://localhost:3002/enrollments/update-report', {
                     method: 'POST',
@@ -111,19 +101,46 @@ export const StudentDashboard = () => {
                         reportUrl: res.data.url
                     })
                 });
-                console.log("✅ URL guardada en Enrollment Service");
-            } catch (dbError) {
-                console.error("❌ Error guardando URL en BD:", dbError);
-            }
-            // ------------------------------------------------------------------
-
+            } catch (dbError) { console.error(dbError); }
         } else {
             alert("❌ Error al subir: " + res.data.message);
         }
     } catch (error) {
         console.error(error);
-        alert("Error de conexión con el servidor de archivos (Gateway/Storage).");
+        alert("Error de conexión con el servidor de archivos.");
     }
+  };
+
+  // --- COMPONENTE INTERNO PARA MANEJAR CLICS EN EL MAPA ---
+  function LocationMarker() {
+    useMapEvents({
+      click(e) {
+        setMyLocation(e.latlng);
+        calculateDistance(e.latlng);
+      },
+    });
+    return myLocation ? <Marker position={myLocation}><Popup>¡Vives aquí!</Popup></Marker> : null;
+  }
+
+  // --- FUNCIÓN QUE LLAMA AL GATEWAY (gRPC) ---
+  const calculateDistance = async (userCoords: {lat: number, lng: number}) => {
+      try {
+          // Petición al Gateway (8080) que internamente llama al gRPC (3007)
+          const res = await fetch('http://localhost:8080/location/calc', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  lat1: userCoords.lat,
+                  lon1: userCoords.lng,
+                  lat2: UCE_COORDS.lat,
+                  lon2: UCE_COORDS.lng
+              })
+          });
+          const data = await res.json();
+          setDistance(data.distance ? data.distance.toFixed(2) : 'Error');
+      } catch (error) {
+          console.error("Error calculando distancia", error);
+      }
   };
 
   return (
@@ -139,7 +156,6 @@ export const StudentDashboard = () => {
 
       <div style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         
-        {/* PERFIL */}
         {activeTab === 'profile' && (
            <div style={cardStyle}>
                 {userData ? (
@@ -153,7 +169,6 @@ export const StudentDashboard = () => {
            </div>
         )}
 
-        {/* PROYECTOS */}
         {activeTab === 'projects' && (
           <div style={{display:'grid', gap:'20px'}}>
               {projects.map((p: any) => (
@@ -169,7 +184,6 @@ export const StudentDashboard = () => {
           </div>
         )}
 
-        {/* MIS INSCRIPCIONES (AQUÍ ESTÁ EL INPUT DE ARCHIVO) */}
         {activeTab === 'my_projects' && (
           <div>
             <SectionTitle title="Estado de mis Postulaciones" />
@@ -185,19 +199,12 @@ export const StudentDashboard = () => {
                                 : <span style={badgeWarning}>PENDIENTE DE TUTOR</span>
                             }
                         </div>
-
                         {insc.status === 'APPROVED' ? (
                             <div style={{marginTop:'20px'}}>
                                 <p style={{fontSize:'13px', color:'#666'}}>✅ Solicitud aceptada. Sube tus documentos.</p>
                                 <div style={{border:'1px dashed #ccc', padding:'15px', marginTop:'10px'}}>
                                     <label style={{fontWeight:'bold', display:'block', marginBottom:'5px'}}>📄 Hoja de Registro (PDF/Imagen)</label>
-                                    
-                                    {/* --- INPUT CORREGIDO: Conectado a handleFileUpload --- */}
-                                    <input 
-                                        type="file" 
-                                        accept=".pdf,.jpg,.png"
-                                        onChange={handleFileUpload} 
-                                    />
+                                    <input type="file" accept=".pdf,.jpg,.png" onChange={handleFileUpload} />
                                 </div>
                             </div>
                         ) : (
@@ -211,13 +218,38 @@ export const StudentDashboard = () => {
           </div>
         )}
 
-        {/* MAPA */}
+        {/* --- PESTAÑA MAPA CON LÓGICA GRPC --- */}
         {activeTab === 'geo' && (
-           <div style={{ height: '500px', border: '2px solid #ccc' }}>
-                 <MapContainer center={[-0.205, -78.510]} zoom={14} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <Marker position={[-0.1998, -78.5055]}><Popup>UCE</Popup></Marker>
-                 </MapContainer>
+           <div style={{ display: 'flex', gap: '20px' }}>
+                <div style={{ flex: 3, height: '500px', border: '2px solid #ccc' }}>
+                        <MapContainer center={[-0.205, -78.510]} zoom={14} style={{ height: '100%', width: '100%' }}>
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <Marker position={UCE_COORDS}><Popup>Universidad Central (UCE)</Popup></Marker>
+                            <LocationMarker />
+                        </MapContainer>
+                </div>
+                <div style={{ flex: 1, ...cardStyle, height: 'fit-content' }}>
+                    <h3>📍 Distancia a la UCE</h3>
+                    <p style={{fontSize: '14px', color: '#666'}}>Haz clic en el mapa para marcar donde vives.</p>
+                    
+                    {myLocation && (
+                        <div style={{marginTop: '20px'}}>
+                            <strong>Tus coordenadas:</strong>
+                            <div style={{fontSize: '12px'}}>{myLocation.lat.toFixed(4)}, {myLocation.lng.toFixed(4)}</div>
+                        </div>
+                    )}
+
+                    <div style={{marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #eee'}}>
+                        {distance ? (
+                            <div>
+                                <span style={{display: 'block', fontSize: '12px', color: '#888'}}>Distancia Calculada (gRPC):</span>
+                                <span style={{fontSize: '32px', fontWeight: 'bold', color: '#004a87'}}>{distance} km</span>
+                            </div>
+                        ) : (
+                            <span style={{fontStyle: 'italic', color: '#999'}}>- - km</span>
+                        )}
+                    </div>
+                </div>
            </div>
         )}
       </div>
@@ -226,7 +258,7 @@ export const StudentDashboard = () => {
   );
 };
 
-// ESTILOS AUXILIARES
+// ESTILOS AUXILIARES (Sin cambios)
 const badgeSuccess = { background:'#28a745', color:'white', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
 const badgeWarning = { background:'#ffc107', color:'black', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
 const InfoField = ({label, value}: any) => ( <div style={{borderBottom:'1px solid #eee', paddingBottom:'5px'}}><span style={{fontWeight:'bold', display:'block', color:'#555'}}>{label}</span><span style={{color:'#333'}}>{value || 'Sin asignar'}</span></div> );

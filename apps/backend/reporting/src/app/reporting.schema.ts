@@ -5,9 +5,6 @@ export type ReportDocument = Report & Document;
 
 @Schema()
 export class Report {
-  @Prop({ default: 'GLOBAL_STATS' }) // Usaremos un solo ID para estadísticas globales
-  type: string;
-
   @Prop({ default: 0 })
   totalStudents: number;
 
@@ -15,10 +12,10 @@ export class Report {
   totalProjects: number;
 
   @Prop({ default: 0 })
-  totalEnrollments: number; // Aprobados
+  approvedEnrollments: number;
 
-  @Prop({ default: 0 })
-  totalHours: number; // Horas convalidadas
+  @Prop({ type: Object, default: {} })
+  projectsByFaculty: Record<string, number>;
 }
 
 export const ReportSchema = SchemaFactory.createForClass(Report);

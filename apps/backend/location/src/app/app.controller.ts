@@ -1,13 +1,14 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
+import { GrpcMethod } from '@nestjs/microservices';
 import { AppService } from './app.service';
 
-@Controller('geo')
+@Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  // Ejemplo de llamada: /geo/nearby?lat=-0.2&lng=-78.5
-  @Get('nearby')
-  getNearbyProjects(@Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.appService.findNearby(Number(lat), Number(lng));
+  // Coincide con 'service LocationService' y rpc 'CalculateDistance' del proto
+  @GrpcMethod('LocationService', 'CalculateDistance')
+  calculateDistance(data: any) {
+    return this.appService.calculateDistance(data);
   }
 }

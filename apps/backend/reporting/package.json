@@ -21,7 +21,10 @@
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
         "dependsOn": ["build"],
-        "options": { "buildTarget": "reporting:build", "runBuildTargetDependencies": false },
+        "options": {
+          "buildTarget": "reporting:build",
+          "runBuildTargetDependencies": false
+        },
         "configurations": {
           "development": { "buildTarget": "reporting:build:development" },
           "production": { "buildTarget": "reporting:build:production" }
@@ -32,11 +35,11 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/microservices": "^11.0.0",
-    "@nestjs/mongoose": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "amqplib": "^0.10.3",
+    "@nestjs/mongoose": "^11.0.0",
+    "@nestjs/microservices": "^11.0.0",
     "mongoose": "^8.0.0",
+    "amqplib": "^0.10.3",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0"

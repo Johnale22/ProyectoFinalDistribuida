@@ -2,6 +2,14 @@
   "name": "@org/api-gateway",
   "version": "0.0.1",
   "private": true,
+  "dependencies": {
+    "express": "^4.18.0",
+    "cors": "^2.8.5",
+    "http-proxy-middleware": "^2.0.6",
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.0",
+    "tslib": "^2.3.0"
+  },
   "nx": {
     "name": "api-gateway",
     "targets": {
@@ -9,51 +17,27 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "webpack-cli build",
-          "args": [
-            "--node-env=production"
-          ],
+          "args": ["--node-env=production"],
           "cwd": "apps/backend/api-gateway"
         },
         "configurations": {
-          "development": {
-            "args": [
-              "--node-env=development"
-            ]
-          }
+          "development": { "args": ["--node-env=development"] }
         }
       },
       "serve": {
         "continuous": true,
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
-        "dependsOn": [
-          "build"
-        ],
+        "dependsOn": ["build"],
         "options": {
           "buildTarget": "api-gateway:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
-          "development": {
-            "buildTarget": "api-gateway:build:development"
-          },
-          "production": {
-            "buildTarget": "api-gateway:build:production"
-          }
+          "development": { "buildTarget": "api-gateway:build:development" },
+          "production": { "buildTarget": "api-gateway:build:production" }
         }
       }
     }
-  },
-  "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "http-proxy-middleware": "^2.0.6",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0",
-    "tslib": "^2.3.0"
-  },
-  "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
   }
 }

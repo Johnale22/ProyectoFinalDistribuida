@@ -1,39 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Report, ReportDocument } from './report.schema';
+import { Report, ReportDocument } from './reporting.schema';
 
 @Injectable()
-export class AppService {
+export class AppService implements OnModuleInit {
   constructor(@InjectModel(Report.name) private reportModel: Model<ReportDocument>) {}
 
-  // Inicializar contadores si no existen
   async onModuleInit() {
-    const exists = await this.reportModel.findOne({ type: 'GLOBAL_STATS' });
+    // Si no hay datos, creamos unos iniciales para probar
+    const exists = await this.reportModel.findOne();
     if (!exists) {
-      await this.reportModel.create({ type: 'GLOBAL_STATS' });
-      console.log('📊 Estadísticas inicializadas en 0');
+      await this.reportModel.create({
+        totalStudents: 100,
+        totalProjects: 15,
+        approvedEnrollments: 5,
+        projectsByFaculty: { 'Ingeniería': 5, 'Medicina': 3 }
+      });
+      console.log('📊 Estadísticas iniciales creadas en Mongo');
     }
   }
 
-  // 1. Obtener Stats (Para el Dashboard)
   async getStats() {
-    return this.reportModel.findOne({ type: 'GLOBAL_STATS' });
+    return this.reportModel.findOne().exec();
   }
 
-  // 2. Evento: Alguien creó un proyecto
-  async incrementProjects() {
-    await this.reportModel.updateOne({ type: 'GLOBAL_STATS' }, { $inc: { totalProjects: 1 } });
-    console.log('📈 Reportes: +1 Proyecto');
-  }
-
-  // 3. Evento: Alguien fue aprobado (Viene de Enrollment)
-  async handleApprovedEnrollment(data: any) {
-    console.log(`📨 Evento Recibido: Estudiante aprobado en proyecto ${data.projectId}`);
-    // Sumamos 1 inscripción y (por ejemplo) 160 horas por defecto
-    await this.reportModel.updateOne(
-        { type: 'GLOBAL_STATS' }, 
-        { $inc: { totalEnrollments: 1, totalHours: 160 } }
-    );
+  async incrementApprovedStats(data: any) {
+    const stats = await this.reportModel.findOne();
+    if (stats) {
+        stats.approvedEnrollments += 1;
+        await stats.save();
+        console.log('📈 Estadísticas actualizadas (+1 Aprobado)');
+    }
   }
 }

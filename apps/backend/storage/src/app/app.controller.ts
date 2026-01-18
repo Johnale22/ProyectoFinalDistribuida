@@ -2,14 +2,22 @@ import { Controller, Post, UseInterceptors, UploadedFile, Body } from '@nestjs/c
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
 
-@Controller('storage')
+@Controller('storage') // <--- Prefijo que coincide con Gateway
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file')) // 'file' es el nombre del campo en el form-data
-  async uploadFile(@UploadedFile() file: Express.Multer.File, @Body('studentId') studentId: string) {
-    if (!file) return { success: false, message: 'No se envió ningún archivo' };
-    return this.appService.uploadFile(file, studentId);
+  @UseInterceptors(FileInterceptor('file')) // Sin diskStorage = Memoria (Buffer disponible)
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('studentId') studentId: string // Recibimos el ID del estudiante
+  ) {
+    if (!file) {
+      return { success: false, message: 'No se recibió ningún archivo' };
+    }
+
+    // Llamamos a TU servicio de MinIO
+    const id = studentId || 'anonimo';
+    return await this.appService.uploadFile(file, id);
   }
 }

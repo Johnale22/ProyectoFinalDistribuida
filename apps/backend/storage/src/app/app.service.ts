@@ -16,7 +16,7 @@ export class AppService implements OnModuleInit {
     // Configuración para MinIO
     this.s3 = new S3Client({
       region: 'us-east-1',
-      endpoint: 'http://localhost:9000', // En la nube, esto será una variable de entorno
+      endpoint: 'http://localhost:9000',
       credentials: {
         accessKeyId: 'admin',
         secretAccessKey: 'adminpassword',
@@ -47,7 +47,7 @@ export class AppService implements OnModuleInit {
       }
     }
 
-    // 2. APLICAR POLÍTICA PÚBLICA (Esto reemplaza al comando manual)
+    // 2. APLICAR POLÍTICA PÚBLICA
     console.log("🔓 Aplicando política de acceso público...");
     
     const policy = {
@@ -56,9 +56,9 @@ export class AppService implements OnModuleInit {
         {
           Sid: "PublicRead",
           Effect: "Allow",
-          Principal: "*", // Cualquiera (Anónimo)
-          Action: ["s3:GetObject"], // Solo lectura
-          Resource: [`arn:aws:s3:::${this.BUCKET_NAME}/*`] // Todos los archivos dentro
+          Principal: "*",
+          Action: ["s3:GetObject"],
+          Resource: [`arn:aws:s3:::${this.BUCKET_NAME}/*`]
         }
       ]
     };
@@ -73,7 +73,6 @@ export class AppService implements OnModuleInit {
       console.error("❌ Error aplicando política pública:", policyError);
     }
   }
-  // --------------------------------
 
   async uploadFile(file: Express.Multer.File, studentId: string) {
     // Usamos timestamp para evitar nombres duplicados
@@ -84,7 +83,7 @@ export class AppService implements OnModuleInit {
       await this.s3.send(new PutObjectCommand({
         Bucket: this.BUCKET_NAME,
         Key: key,
-        Body: file.buffer,
+        Body: file.buffer, // <--- Importante: Multer debe darnos el buffer
         ContentType: file.mimetype,
       }));
 

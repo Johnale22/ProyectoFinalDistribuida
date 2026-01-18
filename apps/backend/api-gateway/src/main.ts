@@ -20,7 +20,7 @@ async function bootstrap() {
   app.use(
     '/auth',
     createProxyMiddleware({
-      target: 'http://localhost:3000/auth',
+      target: 'http://localhost:3000',
       changeOrigin: true,
     })
   );
@@ -29,7 +29,7 @@ async function bootstrap() {
   app.use(
     '/projects',
     createProxyMiddleware({
-      target: 'http://localhost:3001/projects',
+      target: 'http://localhost:3001',
       changeOrigin: true,
     })
   );
@@ -38,7 +38,7 @@ async function bootstrap() {
   app.use(
     '/enrollment',
     createProxyMiddleware({
-      target: 'http://localhost:3002/enrollment',
+      target: 'http://localhost:3002',
       changeOrigin: true,
     })
   );
@@ -47,7 +47,7 @@ async function bootstrap() {
   app.use(
     '/reports',
     createProxyMiddleware({
-      target: 'http://localhost:3003/reports',
+      target: 'http://localhost:3003',
       changeOrigin: true,
     })
   );
@@ -57,6 +57,15 @@ async function bootstrap() {
     '/audit',
     createProxyMiddleware({
       target: 'http://localhost:3005',
+      changeOrigin: true,
+    })
+  );
+  
+  // 6. Storage: Gateway (/storage) -> Microservicio (3006/storage)
+  app.use(
+    '/storage',
+    createProxyMiddleware({
+      target: 'http://localhost:3006', 
       changeOrigin: true,
     })
   );

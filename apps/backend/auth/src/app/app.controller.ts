@@ -22,7 +22,7 @@ export class AppController {
 
   @Post('register')
   async register(@Body() body: any) {
-    return this.appService.register(body);
+    return await this.appService.register(body);
   }
 
   @Get('profile/:username')

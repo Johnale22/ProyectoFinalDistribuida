@@ -77,6 +77,23 @@ services:
     networks:
       - vinculacion_net
 
+  # 6. Almacenamiento de Archivos (MinIO - Compatible S3)
+  minio:
+    image: minio/minio
+    container_name: uce_minio
+    restart: always
+    ports:
+      - "9000:9000" # Acceso API (Backend)
+      - "9001:9001" # Consola Web (Navegador)
+    environment:
+      MINIO_ROOT_USER: "admin"
+      MINIO_ROOT_PASSWORD: "adminpassword"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - vinculacion_net
+
 # Definición de la red compartida
 networks:
   vinculacion_net:
@@ -88,3 +105,4 @@ volumes:
   mongo_data:
   rabbitmq_data:
   n8n_data:
+  minio_data: # <--- Nuevo volumen para MinIO

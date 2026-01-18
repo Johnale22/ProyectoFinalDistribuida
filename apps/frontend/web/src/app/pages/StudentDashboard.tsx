@@ -50,7 +50,6 @@ export const StudentDashboard = () => {
     }
   }, [currentUser, activeTab]);
 
-  // --- CORRECCIÓN CLAVE AQUÍ ---
   const handleEnroll = async (project: any) => {
     if(!window.confirm(`¿Confirmar postulación a: ${project.title}?`)) return;
     
@@ -79,8 +78,52 @@ export const StudentDashboard = () => {
     }
   };
 
-  const handleUpload = (type: string) => {
-    alert(`📂 Subiendo ${type} al Storage Service...`);
+  // Función real de subida (CONECTADA CON MINIO)
+  const handleFileUpload = async (e: any) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Crear el paquete de datos (FormData)
+    const formData = new FormData();
+    formData.append('file', file); // 'file' debe coincidir con el backend
+    formData.append('studentId', currentUser || 'anonimo');
+
+    try {
+        alert("⏳ Subiendo archivo...");
+        
+        // Petición al Gateway (8080) -> Storage (3006)
+        const res = await api.post('/storage/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        // Axios devuelve la respuesta en .data
+        if (res.data.success) {
+            alert(`✅ Archivo subido con éxito.\nURL: ${res.data.url}`);
+            console.log("URL del archivo:", res.data.url);
+
+            // --- NUEVO BLOQUE: ACTUALIZAR URL EN BASE DE DATOS (Enrollment) ---
+            try {
+                await fetch('http://localhost:3002/enrollments/update-report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        studentId: currentUser,
+                        reportUrl: res.data.url
+                    })
+                });
+                console.log("✅ URL guardada en Enrollment Service");
+            } catch (dbError) {
+                console.error("❌ Error guardando URL en BD:", dbError);
+            }
+            // ------------------------------------------------------------------
+
+        } else {
+            alert("❌ Error al subir: " + res.data.message);
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Error de conexión con el servidor de archivos (Gateway/Storage).");
+    }
   };
 
   return (
@@ -110,7 +153,7 @@ export const StudentDashboard = () => {
            </div>
         )}
 
-        {/* PROYECTOS (Aquí estaba el botón problemático) */}
+        {/* PROYECTOS */}
         {activeTab === 'projects' && (
           <div style={{display:'grid', gap:'20px'}}>
               {projects.map((p: any) => (
@@ -119,7 +162,6 @@ export const StudentDashboard = () => {
                       <p>{p.description}</p>
                       <div style={{display:'flex', justifyContent:'space-between', marginTop:'10px'}}>
                           <small>Cupos ocupados: {p.enrolled}</small>
-                          {/* Llamamos a la función corregida pasando todo el objeto 'p' */}
                           <button style={btnStyle} onClick={() => handleEnroll(p)}>Postularse</button>
                       </div>
                   </div>
@@ -127,7 +169,7 @@ export const StudentDashboard = () => {
           </div>
         )}
 
-        {/* MIS INSCRIPCIONES (Estado PENDIENTE/APROBADO) */}
+        {/* MIS INSCRIPCIONES (AQUÍ ESTÁ EL INPUT DE ARCHIVO) */}
         {activeTab === 'my_projects' && (
           <div>
             <SectionTitle title="Estado de mis Postulaciones" />
@@ -148,8 +190,14 @@ export const StudentDashboard = () => {
                             <div style={{marginTop:'20px'}}>
                                 <p style={{fontSize:'13px', color:'#666'}}>✅ Solicitud aceptada. Sube tus documentos.</p>
                                 <div style={{border:'1px dashed #ccc', padding:'15px', marginTop:'10px'}}>
-                                    <label style={{fontWeight:'bold', display:'block', marginBottom:'5px'}}>📄 Hoja de Registro</label>
-                                    <input type="file" onChange={() => handleUpload('Registro')} />
+                                    <label style={{fontWeight:'bold', display:'block', marginBottom:'5px'}}>📄 Hoja de Registro (PDF/Imagen)</label>
+                                    
+                                    {/* --- INPUT CORREGIDO: Conectado a handleFileUpload --- */}
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf,.jpg,.png"
+                                        onChange={handleFileUpload} 
+                                    />
                                 </div>
                             </div>
                         ) : (

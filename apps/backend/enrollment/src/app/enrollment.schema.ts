@@ -9,6 +9,7 @@ export class Enrollment {
   @Prop() projectId: number;
   @Prop() projectTitle: string;
   @Prop({ default: 'PENDING' }) status: string;
+  @Prop() reportUrl: string;
 }
 
 export const EnrollmentSchema = SchemaFactory.createForClass(Enrollment);

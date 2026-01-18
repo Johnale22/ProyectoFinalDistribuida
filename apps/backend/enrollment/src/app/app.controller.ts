@@ -28,4 +28,22 @@ export class AppController {
   getMyEnrollments(@Param('username') username: string) {
     return this.appService.findMyEnrollments(username);
   }
+
+    @Get('approved')
+  async getApproved() {
+    return this.appService.getApproved();
+  }
+
+  // --- NUEVO: Endpoint para el Estudiante (Guardar URL) ---
+  @Post('update-report')
+  async updateReport(@Body() body: { studentId: string; reportUrl: string }) {
+    try {
+        const result = await this.appService.updateReport(body.studentId, body.reportUrl);
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, message: 'No tienes una inscripción aprobada activa.' };
+    }
+  }
+
+
 }

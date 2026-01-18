@@ -53,10 +53,10 @@ export class AppService {
             studentName: enrollment.studentName 
         });
 
-        // B. Avisar a Reporting (Sumar estadística) <--- AQUÍ ESTÁ EL ARREGLO
+        // B. Avisar a Reporting (Sumar estadística)
         this.reportingClient.emit('enrollment_approved', {
             projectId: enrollment.projectId,
-            studentId: enrollment.studentId || 'Anonimo',
+            studentId: enrollment.studentName || 'Anonimo', // Corregido studentId -> studentName para consistencia
             date: new Date()
         });
     }
@@ -75,5 +75,29 @@ export class AppService {
   // Buscar del Estudiante
   findMyEnrollments(studentName: string) {
     return this.model.find({ studentName }).exec();
+  }
+
+  // 1. Obtener lista de aprobados (Para el Tutor)
+  async getApproved() {
+    // CORREGIDO: Usamos 'this.model', no 'this.enrollmentModel'
+    return this.model.find({ status: 'APPROVED' }).exec();
+  }
+
+  // 2. Guardar URL del reporte (Para el Estudiante)
+  async updateReport(studentId: string, url: string) {
+    console.log(`📎 Guardando reporte para ${studentId}: ${url}`);
+    
+    // CORREGIDO: Usamos 'this.model', no 'this.enrollmentModel'
+    const enrollment = await this.model.findOne({ 
+        studentName: studentId,
+        status: 'APPROVED'
+    });
+
+    if (!enrollment) {
+        throw new Error('No se encontró una inscripción aprobada para este estudiante');
+    }
+
+    enrollment.reportUrl = url;
+    return enrollment.save();
   }
 }

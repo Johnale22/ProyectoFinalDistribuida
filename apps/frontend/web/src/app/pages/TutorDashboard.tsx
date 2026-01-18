@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios';
 
 export const TutorDashboard = () => {
   const navigate = useNavigate();
@@ -8,21 +7,37 @@ export const TutorDashboard = () => {
   
   // Estados para pestañas y datos
   const [activeTab, setActiveTab] = useState('requests'); 
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]); // Solicitudes Pendientes
+  const [approvedStudents, setApprovedStudents] = useState<any[]>([]); // Estudiantes Aprobados (con archivos)
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
-  // 1. CARGAR SOLICITUDES (Enrollment Service - 3002)
+  // 1. CARGAR SOLICITUDES PENDIENTES
   useEffect(() => {
     if (activeTab === 'requests') {
         fetch('http://localhost:3002/enrollments/pending')
           .then(res => res.json())
           .then(data => setRequests(data))
-          .catch(err => console.error("Error conectando a Enrollment 3002:", err));
+          .catch(err => console.error("Error conectando a Enrollment:", err));
     }
   }, [activeTab]);
 
-  // 2. GESTIONAR (Aprobar/Rechazar)
+  // 2. CARGAR ESTUDIANTES APROBADOS (Para ver archivos)
+  useEffect(() => {
+    if (activeTab === 'hours') {
+        // Necesitas asegurarte de tener este endpoint o filtrar los datos existentes
+        fetch('http://localhost:3002/enrollments/approved') 
+          .then(res => res.json())
+          .then(data => {
+              // Si tu backend devuelve todo mezclado, filtra aquí:
+              // const approved = data.filter((d: any) => d.status === 'APPROVED');
+              setApprovedStudents(data);
+          })
+          .catch(err => console.error("Error cargando aprobados:", err));
+    }
+  }, [activeTab]);
+
+  // 3. GESTIONAR (Aprobar/Rechazar)
   const handleDecision = async (id: string, status: 'APPROVED' | 'REJECTED') => {
       if(!window.confirm(`¿Estás seguro de ${status === 'APPROVED' ? 'APROBAR' : 'RECHAZAR'} esta solicitud?`)) return;
 
@@ -36,7 +51,7 @@ export const TutorDashboard = () => {
           
           if(data.success) {
               alert(`✅ Solicitud ${status === 'APPROVED' ? 'APROBADA' : 'RECHAZADA'}`);
-              setRequests(prev => prev.filter(r => r._id !== id)); // Actualizar lista visualmente
+              setRequests(prev => prev.filter(r => r._id !== id));
           } else {
               alert("Error: " + data.message);
           }
@@ -46,36 +61,30 @@ export const TutorDashboard = () => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f6f9' }}>
       
-      {/* 1. HEADER (Igual al del Estudiante) */}
       <Header user={user.toUpperCase()} logout={logout} subtitle="GESTIÓN DOCENTE" />
 
-      {/* 2. BARRA DE NAVEGACIÓN */}
       <nav style={{ background: '#004a87', padding: '0 40px', display: 'flex', gap: '30px', height: '50px', alignItems: 'center' }}>
         <NavButton label="📩 Solicitudes Pendientes" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
-        <NavButton label="⏱️ Aprobación de Horas" active={activeTab === 'hours'} onClick={() => setActiveTab('hours')} />
+        <NavButton label="📄 Revisión de Documentos" active={activeTab === 'hours'} onClick={() => setActiveTab('hours')} />
       </nav>
 
-      {/* 3. CONTENIDO PRINCIPAL */}
       <div style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         
-        {/* PESTAÑA: SOLICITUDES */}
+        {/* PESTAÑA 1: SOLICITUDES */}
         {activeTab === 'requests' && (
           <div>
             <SectionTitle title="Solicitudes de Inscripción" />
-            
             <div style={cardStyle}>
                 {requests.length === 0 ? (
-                    <div style={{textAlign:'center', padding:'20px'}}>
-                        <p style={{color:'#666', fontSize:'16px'}}>📭 No tienes solicitudes pendientes por revisar.</p>
-                    </div>
+                    <EmptyState message="📭 No tienes solicitudes pendientes por revisar." />
                 ) : (
                     <table style={{width:'100%', borderCollapse:'collapse'}}>
                         <thead>
                             <tr style={{borderBottom:'2px solid #eee', textAlign:'left'}}>
-                                <th style={{padding:'15px', color:'#004a87'}}>Estudiante</th>
-                                <th style={{padding:'15px', color:'#004a87'}}>Proyecto Solicitado</th>
-                                <th style={{padding:'15px', color:'#004a87'}}>Fecha</th>
-                                <th style={{padding:'15px', color:'#004a87'}}>Acción</th>
+                                <th style={thStyle}>Estudiante</th>
+                                <th style={thStyle}>Proyecto Solicitado</th>
+                                <th style={thStyle}>Fecha</th>
+                                <th style={thStyle}>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -99,25 +108,64 @@ export const TutorDashboard = () => {
           </div>
         )}
 
-        {/* PESTAÑA: HORAS (Placeholder) */}
+        {/* PESTAÑA 2: DOCUMENTOS (MINIO) */}
         {activeTab === 'hours' && (
            <div>
-               <SectionTitle title="Validación de Horas" />
+               <SectionTitle title="Documentos de Estudiantes Aprobados" />
                <div style={cardStyle}>
-                   <p style={{color:'#666'}}>Selecciona un proyecto para ver los reportes de horas cargados por los estudiantes.</p>
+                   {approvedStudents.length === 0 ? (
+                       <EmptyState message="📂 No hay estudiantes aprobados o documentos cargados." />
+                   ) : (
+                       <table style={{width:'100%', borderCollapse:'collapse'}}>
+                           <thead>
+                               <tr style={{borderBottom:'2px solid #eee', textAlign:'left'}}>
+                                   <th style={thStyle}>Estudiante</th>
+                                   <th style={thStyle}>Proyecto</th>
+                                   <th style={thStyle}>Estado Archivo</th>
+                                   <th style={thStyle}>Acción</th>
+                               </tr>
+                           </thead>
+                           <tbody>
+                               {approvedStudents.map((st: any) => (
+                                   <tr key={st._id} style={{borderBottom:'1px solid #f0f0f0'}}>
+                                       <td style={{padding:'15px', fontWeight:'bold'}}>{st.studentName}</td>
+                                       <td style={{padding:'15px'}}>{st.projectTitle}</td>
+                                       <td style={{padding:'15px'}}>
+                                           {st.reportUrl ? 
+                                              <span style={{color:'green', fontWeight:'bold'}}>✅ Subido</span> : 
+                                              <span style={{color:'orange'}}>⏳ Pendiente</span>
+                                           }
+                                       </td>
+                                       <td style={{padding:'15px'}}>
+                                           {st.reportUrl ? (
+                                               <a 
+                                                 href={st.reportUrl} 
+                                                 target="_blank" 
+                                                 rel="noopener noreferrer"
+                                                 style={{...actionBtn, background:'#007bff', textDecoration:'none', display:'inline-block'}}
+                                               >
+                                                 📄 Ver PDF
+                                               </a>
+                                           ) : (
+                                               <span style={{color:'#ccc', fontSize:'13px'}}>Sin archivo</span>
+                                           )}
+                                       </td>
+                                   </tr>
+                               ))}
+                           </tbody>
+                       </table>
+                   )}
                </div>
            </div>
         )}
 
       </div>
-
-      {/* 4. FOOTER */}
       <Footer />
     </div>
   );
 };
 
-// --- COMPONENTES DE ESTILO (Copiados del Estudiante) ---
+// --- COMPONENTES AUXILIARES Y ESTILOS ---
 const Header = ({ user, logout, subtitle }: any) => ( 
     <div style={{ background: 'white', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -147,12 +195,19 @@ const SectionTitle = ({ title }: any) => (
     </div> 
 );
 
+const EmptyState = ({message}: {message: string}) => (
+    <div style={{textAlign:'center', padding:'20px'}}>
+        <p style={{color:'#666', fontSize:'16px'}}>{message}</p>
+    </div>
+);
+
 const Footer = () => (
     <footer style={{ background: '#333', color: 'white', textAlign: 'center', padding: '10px', fontSize: '12px' }}>
         Sistema de Vinculación UCE
     </footer>
 );
 
-// Estilos CSS-in-JS
+// Estilos
 const cardStyle = { background: 'white', padding: '30px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
 const actionBtn = { color: 'white', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize:'13px', fontWeight:'bold' };
+const thStyle = { padding:'15px', color:'#004a87' };

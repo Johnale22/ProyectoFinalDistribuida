@@ -139,7 +139,7 @@ export class AppService implements OnModuleInit {
 
      console.log(`🛠️ Creando usuario: ${body.username} | Pass asignada: ${finalPassword}`);
 
-     const newUser = this.userRepo.creatwe({
+     const newUser = this.userRepo.create({
        username: body.username,
        password: finalPassword,
        role: body.role || 'STUDENT',

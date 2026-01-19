@@ -69,7 +69,8 @@ async function bootstrap() {
   // 2. Projects (3001)
   app.use('/projects', createProxyMiddleware({ 
       target: 'http://localhost:3001', 
-      changeOrigin: true 
+      changeOrigin: true,
+      pathRewrite: { '^/projects': '' }
   }));
 
   // 3. Enrollment (3002)
@@ -84,7 +85,7 @@ async function bootstrap() {
   app.use('/reports', createProxyMiddleware({ 
       target: 'http://localhost:3003', 
       changeOrigin: true,
-      pathRewrite: { '^/reports': '' } // <--- ESTO ES LO QUE NECESITAS
+
   }));
 
   // 5. Audit (3005)
@@ -98,6 +99,12 @@ async function bootstrap() {
   app.use('/storage', createProxyMiddleware({ 
       target: 'http://localhost:3006', 
       changeOrigin: true,
+  }));
+  
+  // 7. Validation (AHORA EN PUERTO 3008)
+  app.use('/validation', createProxyMiddleware({ 
+      target: 'http://localhost:3008', // <--- CAMBIO AQUÍ
+      changeOrigin: true 
   }));
   
   await app.listen(8080);

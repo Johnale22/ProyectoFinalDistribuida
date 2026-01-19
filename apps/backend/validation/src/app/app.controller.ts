@@ -1,15 +1,13 @@
-import { Controller } from '@nestjs/common';
-import { GrpcMethod } from '@nestjs/microservices'; // <--- Importar
+import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller()
+@Controller('validation') // Escucha en /validation
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  // El nombre 'ValidationService' y 'ValidateStudent' deben coincidir con el .proto
-  @GrpcMethod('ValidationService', 'ValidateStudent')
-  validateStudent(data: { studentName: string }) {
-    console.log(`🔍 (gRPC) Validando a: ${data.studentName}`);
-    return this.appService.validateStudent(data.studentName);
+  @Post('check-eligibility')
+  @HttpCode(200)
+  check(@Body() body: { studentId: string; projectCode: string }) {
+    return this.appService.validateStudent(body.studentId, body.projectCode);
   }
 }

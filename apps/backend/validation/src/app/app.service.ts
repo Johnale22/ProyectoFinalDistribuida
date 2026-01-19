@@ -3,34 +3,31 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class AppService {
   
-  // Lista simulada de estudiantes que NO pueden inscribirse
-  private bannedStudents = [
-    'Kevin Sancionado', 
-    'Estudiante Irregular',
-    'Bad Guy'
-  ];
+  // Simulación: Validar si un estudiante puede vincularse
+  validateStudent(studentId: string, projectCode: string) {
+    console.log(`🔍 Validando estudiante ${studentId} para el proyecto ${projectCode}...`);
 
-  validateStudent(studentName: string) {
-    // 1. Verificar si está baneado
-    if (this.bannedStudents.includes(studentName)) {
+    // LOGICA FICTICIA DE NEGOCIO:
+    // 1. Si el ID termina en "000", está bloqueado por sanciones.
+    if (studentId.endsWith('000')) {
       return { 
-        allowed: false, 
-        reason: 'El estudiante tiene sanciones disciplinarias vigentes.' 
+        canEnroll: false, 
+        reason: 'El estudiante tiene sanciones disciplinarias pendientes.' 
       };
     }
 
-    // 2. Simular validación de semestre (aleatorio para demo)
-    // En vida real, consultarías al sistema académico central
-    const currentSemester = Math.floor(Math.random() * 10) + 1; // 1 a 10
-    
-    if (currentSemester < 6) {
-      return {
-        allowed: false,
-        reason: `Estudiante en ${currentSemester}° semestre. Se requiere mínimo 6° semestre.`
+    // 2. Si el ID termina en "111", ya completó sus horas.
+    if (studentId.endsWith('111')) {
+      return { 
+        canEnroll: false, 
+        reason: 'El estudiante ya completó el máximo de horas de vinculación.' 
       };
     }
 
-    // 3. Si pasa todo
-    return { allowed: true, semester: currentSemester };
+    // 3. Caso feliz
+    return { 
+      canEnroll: true, 
+      reason: 'Estudiante apto. Cumple con el 70% de créditos aprobados.' 
+    };
   }
 }

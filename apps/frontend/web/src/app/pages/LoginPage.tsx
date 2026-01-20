@@ -11,12 +11,18 @@ export const LoginPage = () => {
     console.log("Intentando conectar con Backend...");
 
     try {
-      // OJO: La URL debe coincidir con el puerto del main.ts (3000) y el controller ('auth')
-      const res = await fetch('http://localhost:3000/auth/login', {
+      // ✅ CAMBIO CRÍTICO: Apuntamos al GATEWAY (8080), no al microservicio directo.
+      // El Gateway recibirá '/auth/login', le quitará el '/auth' y lo enviará al puerto 3000 como '/login'.
+      const res = await fetch('http://localhost:8080/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
+
+      // Verificamos si la respuesta es válida antes de convertir a JSON
+      if (!res.ok) {
+        throw new Error(`Error del servidor: ${res.status}`);
+      }
 
       const data = await res.json();
       console.log("Respuesta del servidor:", data);
@@ -36,12 +42,13 @@ export const LoginPage = () => {
         else navigate('/student'); 
       } else {
         console.warn("Rol desconocido, enviando a student por defecto");
-            navigate('/student');
+        navigate('/student'); // Si hay login pero no rol claro, mandamos a student para evitar bucles
       }
 
     } catch (e) {
       console.error("Error de Red:", e);
-      alert('⚠️ No se pudo conectar con el servidor. Revisa si el backend está encendido en el puerto 3000.');
+      // Mensaje actualizado para reflejar que usamos el puerto 8080
+      alert('⚠️ No se pudo conectar con el sistema. Revisa si el API Gateway está encendido en el puerto 8080.');
     }
   };
 

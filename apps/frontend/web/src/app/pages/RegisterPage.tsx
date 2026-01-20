@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios'; // Importar API
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -21,14 +20,23 @@ export const RegisterPage = () => {
     };
 
     try {
-      // Gateway: 8080/auth/register
-      const res = await api.post('/auth/register', payload);
-      if (res.data.success) {
+      // ✅ GATEWAY: 8080/auth/register
+      const res = await fetch('http://localhost:8080/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+
+      if (data.success || res.ok) {
         alert('✅ Registro Exitoso. Inicia sesión.');
         navigate('/');
+      } else {
+        alert('❌ Error: ' + (data.message || 'Fallo en registro'));
       }
     } catch (e: any) {
-      alert('❌ Error: ' + (e.response?.data?.message || 'Fallo en Gateway'));
+      alert('❌ Error de conexión con API Gateway (8080)');
     }
   };
 

@@ -1,7 +1,9 @@
 import { Controller, Post, Body, UnauthorizedException, Get, Param, NotFoundException } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('auth') // <--- IMPORTANTE: prefijo 'auth'
+// CAMBIO CRÍTICO: Dejamos el Controller VACÍO.
+// El servicio escuchará directamente en /login y /register
+@Controller() 
 export class AppController {
   constructor(private readonly appService: AppService) {}
 

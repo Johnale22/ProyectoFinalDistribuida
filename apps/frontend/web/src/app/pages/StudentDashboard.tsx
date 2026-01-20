@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import api from '../api/axios';
 
-// Fix iconos Leaflet (Mapa)
+// Fix iconos Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -20,17 +20,17 @@ export const StudentDashboard = () => {
   const [myProjects, setMyProjects] = useState<any[]>([]); 
   const [userData, setUserData] = useState<any>(null);
 
-  // --- NUEVOS ESTADOS PARA GEOLOCALIZACIÓN ---
+  // Geo
   const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
   const [distance, setDistance] = useState<string | null>(null);
-  const UCE_COORDS = { lat: -0.1998, lng: -78.5055 }; // Coordenadas fijas de la UCE
-  // -------------------------------------------
+  const UCE_COORDS = { lat: -0.1998, lng: -78.5055 };
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
   useEffect(() => {
     if (currentUser) {
-      fetch(`http://localhost:3000/auth/profile/${currentUser}`)
+      // ✅ GATEWAY: 8080/auth/profile
+      fetch(`http://localhost:8080/auth/profile/${currentUser}`)
         .then(res => res.json())
         .then(data => setUserData(data))
         .catch(console.error);
@@ -38,7 +38,8 @@ export const StudentDashboard = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/projects')
+    // ✅ GATEWAY: 8080/projects
+    fetch('http://localhost:8080/projects')
       .then(r => r.json())
       .then(d => { if(Array.isArray(d)) setProjects(d); })
       .catch(console.error);
@@ -46,7 +47,8 @@ export const StudentDashboard = () => {
 
   useEffect(() => {
     if (currentUser && activeTab === 'my_projects') {
-        fetch(`http://localhost:3002/enrollments/student/${currentUser}`)
+        // ✅ GATEWAY: 8080/enrollment (singular) -> Backend: /enrollments (plural)
+        fetch(`http://localhost:8080/enrollment/student/${currentUser}`)
             .then(r => r.json())
             .then(data => setMyProjects(data))
             .catch(console.error);
@@ -57,7 +59,8 @@ export const StudentDashboard = () => {
     if(!window.confirm(`¿Confirmar postulación a: ${project.title}?`)) return;
     
     try {
-        const res = await fetch(`http://localhost:3002/enrollments`, {
+        // ✅ GATEWAY: 8080/enrollment
+        const res = await fetch(`http://localhost:8080/enrollment`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -72,7 +75,7 @@ export const StudentDashboard = () => {
         else alert("⚠️ " + (data.message || "Error desconocido"));
     } catch(e) { 
         console.error(e);
-        alert("Error de conexión con Enrollment Service."); 
+        alert("Error de conexión con Enrollment Service (Gateway)."); 
     }
   };
 
@@ -86,32 +89,35 @@ export const StudentDashboard = () => {
 
     try {
         alert("⏳ Subiendo archivo...");
-        const res = await api.post('/storage/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+        // ✅ GATEWAY: 8080/storage
+        const res = await fetch('http://localhost:8080/storage/upload', {
+            method: 'POST',
+            body: formData
         });
+        const data = await res.json();
 
-        if (res.data.success) {
+        if (data.success) {
             alert(`✅ Archivo subido con éxito.`);
             try {
-                await fetch('http://localhost:3002/enrollments/update-report', {
+                // ✅ GATEWAY: 8080/enrollment
+                await fetch('http://localhost:8080/enrollment/update-report', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         studentId: currentUser,
-                        reportUrl: res.data.url
+                        reportUrl: data.url
                     })
                 });
             } catch (dbError) { console.error(dbError); }
         } else {
-            alert("❌ Error al subir: " + res.data.message);
+            alert("❌ Error al subir.");
         }
     } catch (error) {
         console.error(error);
-        alert("Error de conexión con el servidor de archivos.");
+        alert("Error de conexión.");
     }
   };
 
-  // --- COMPONENTE INTERNO PARA MANEJAR CLICS EN EL MAPA ---
   function LocationMarker() {
     useMapEvents({
       click(e) {
@@ -122,10 +128,9 @@ export const StudentDashboard = () => {
     return myLocation ? <Marker position={myLocation}><Popup>¡Vives aquí!</Popup></Marker> : null;
   }
 
-  // --- FUNCIÓN QUE LLAMA AL GATEWAY (gRPC) ---
   const calculateDistance = async (userCoords: {lat: number, lng: number}) => {
       try {
-          // Petición al Gateway (8080) que internamente llama al gRPC (3007)
+          // ✅ GATEWAY: 8080/location/calc
           const res = await fetch('http://localhost:8080/location/calc', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -218,7 +223,6 @@ export const StudentDashboard = () => {
           </div>
         )}
 
-        {/* --- PESTAÑA MAPA CON LÓGICA GRPC --- */}
         {activeTab === 'geo' && (
            <div style={{ display: 'flex', gap: '20px' }}>
                 <div style={{ flex: 3, height: '500px', border: '2px solid #ccc' }}>
@@ -258,7 +262,6 @@ export const StudentDashboard = () => {
   );
 };
 
-// ESTILOS AUXILIARES (Sin cambios)
 const badgeSuccess = { background:'#28a745', color:'white', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
 const badgeWarning = { background:'#ffc107', color:'black', padding:'4px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold' };
 const InfoField = ({label, value}: any) => ( <div style={{borderBottom:'1px solid #eee', paddingBottom:'5px'}}><span style={{fontWeight:'bold', display:'block', color:'#555'}}>{label}</span><span style={{color:'#333'}}>{value || 'Sin asignar'}</span></div> );

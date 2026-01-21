@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import api from '../api/axios';
 
-// Fix iconos Leaflet
+// Fix iconos Leaflet (Mapa)
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -27,9 +27,10 @@ export const StudentDashboard = () => {
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
+  // 1. CARGAR PERFIL
   useEffect(() => {
     if (currentUser) {
-      // ✅ GATEWAY: 8080/auth/profile
+      // ✅ GATEWAY: 8080
       fetch(`http://localhost:8080/auth/profile/${currentUser}`)
         .then(res => res.json())
         .then(data => setUserData(data))
@@ -37,21 +38,39 @@ export const StudentDashboard = () => {
     }
   }, [currentUser]);
 
+  // 2. CARGAR PROYECTOS
   useEffect(() => {
-    // ✅ GATEWAY: 8080/projects
+    // ✅ GATEWAY: 8080
     fetch('http://localhost:8080/projects')
       .then(r => r.json())
-      .then(d => { if(Array.isArray(d)) setProjects(d); })
+      .then(d => { 
+          // ✅ BLINDAJE: Solo guardamos si es array
+          if(Array.isArray(d)) setProjects(d); 
+          else setProjects([]);
+      })
       .catch(console.error);
   }, []);
 
+  // 3. CARGAR MIS INSCRIPCIONES (Aquí estaba el fallo)
   useEffect(() => {
     if (currentUser && activeTab === 'my_projects') {
-        // ✅ GATEWAY: 8080/enrollment (singular) -> Backend: /enrollments (plural)
+        // ✅ GATEWAY: 8080 + Ruta '/enrollment' (singular)
         fetch(`http://localhost:8080/enrollment/student/${currentUser}`)
             .then(r => r.json())
-            .then(data => setMyProjects(data))
-            .catch(console.error);
+            .then(data => {
+                // ✅ BLINDAJE CRÍTICO ANTI-PANTALLA BLANCA
+                // Si el backend devuelve error {message: '...'}, esto evita el crash
+                if (Array.isArray(data)) {
+                    setMyProjects(data);
+                } else {
+                    console.warn("Respuesta no válida en inscripciones:", data);
+                    setMyProjects([]); // Forzamos lista vacía
+                }
+            })
+            .catch(err => {
+                console.error("Error cargando inscripciones:", err);
+                setMyProjects([]);
+            });
     }
   }, [currentUser, activeTab]);
 
@@ -75,7 +94,7 @@ export const StudentDashboard = () => {
         else alert("⚠️ " + (data.message || "Error desconocido"));
     } catch(e) { 
         console.error(e);
-        alert("Error de conexión con Enrollment Service (Gateway)."); 
+        alert("Error de conexión con Enrollment Service."); 
     }
   };
 
@@ -96,7 +115,7 @@ export const StudentDashboard = () => {
         });
         const data = await res.json();
 
-        if (data.success) {
+        if (data.success || data.url) {
             alert(`✅ Archivo subido con éxito.`);
             try {
                 // ✅ GATEWAY: 8080/enrollment
@@ -130,7 +149,6 @@ export const StudentDashboard = () => {
 
   const calculateDistance = async (userCoords: {lat: number, lng: number}) => {
       try {
-          // ✅ GATEWAY: 8080/location/calc
           const res = await fetch('http://localhost:8080/location/calc', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  # 1. Base de Datos Relacional (SQL)
+  # =========================================
+  # 🏗️ INFRAESTRUCTURA
+  # =========================================
   postgres:
     image: postgres:15-alpine
     container_name: uce_postgres
@@ -18,7 +20,6 @@ services:
     networks:
       - vinculacion_net
 
-  # 2. Base de Datos Documental (NoSQL)
   mongo:
     image: mongo:6.0
     container_name: uce_mongo
@@ -33,19 +34,6 @@ services:
     networks:
       - vinculacion_net
 
-  # 3. Base de Datos en Caché (Key-Value)
-  redis:
-    image: redis:7-alpine
-    container_name: uce_redis
-    restart: always
-    ports:
-      - '6379:6379'
-    # Nota: Quitamos la contraseña por ahora para facilitar la conexión local
-    # Si quieres ponerla, usa: command: redis-server --requirepass adminpassword
-    networks:
-      - vinculacion_net
-
-  # 4. Message Broker (Event Driven)
   rabbitmq:
     image: rabbitmq:3-management
     container_name: uce_rabbitmq
@@ -54,14 +42,13 @@ services:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: adminpassword
     ports:
-      - '5672:5672'   # Puerto para NestJS
-      - '15672:15672' # Panel Web
+      - '5672:5672'
+      - '15672:15672'
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - vinculacion_net
 
-  # 5. Automatización de Procesos (Req #20)
   n8n:
     image: n8nio/n8n
     container_name: vinculacion_n8n
@@ -77,14 +64,13 @@ services:
     networks:
       - vinculacion_net
 
-  # 6. Almacenamiento de Archivos (MinIO - Compatible S3)
   minio:
     image: minio/minio
     container_name: uce_minio
     restart: always
     ports:
-      - "9000:9000" # Acceso API (Backend)
-      - "9001:9001" # Consola Web (Navegador)
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: "admin"
       MINIO_ROOT_PASSWORD: "adminpassword"
@@ -94,15 +80,148 @@ services:
     networks:
       - vinculacion_net
 
-# Definición de la red compartida
+  # =========================================
+  # 💻 FRONTEND (React)
+  # =========================================
+  frontend:
+    container_name: ms_frontend
+    build:
+      context: . # Contexto en la raíz para que Nx pueda construir
+      dockerfile: apps/frontend/web/Dockerfile
+    ports:
+      - "80:80" # Accedes en el navegador como http://localhost
+    networks:
+      - vinculacion_net
+
+  # =========================================
+  # 🚀 MICROSERVICIOS BACKEND
+  # =========================================
+
+  auth-service:
+    container_name: ms_auth
+    build: { context: ./apps/backend/auth }
+    ports: ["3000:3000"]
+    environment:
+      - DB_HOST=uce_postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASS=adminpassword
+      - DB_NAME=vinculacion_db
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [postgres, rabbitmq]
+    networks: [vinculacion_net]
+
+  projects-service:
+    container_name: ms_projects
+    build: { context: ./apps/backend/projects }
+    ports: ["3001:3001"]
+    environment:
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [rabbitmq]
+    networks: [vinculacion_net]
+
+  enrollment-service:
+    container_name: ms_enrollment
+    build: { context: ./apps/backend/enrollment }
+    ports: ["3002:3002"]
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@uce_mongo:27017/vinculacion_enrollment?authSource=admin
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [mongo, rabbitmq]
+    networks: [vinculacion_net]
+
+  # ✅ NUEVO: Reporting
+  reporting-service:
+    container_name: ms_reports
+    build: { context: ./apps/backend/reporting }
+    ports: ["3003:3003"]
+    environment:
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [rabbitmq]
+    networks: [vinculacion_net]
+
+  audit-service:
+    container_name: ms_audit
+    build: { context: ./apps/backend/audit }
+    ports: ["3005:3005"]
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@uce_mongo:27017/vinculacion_audit?authSource=admin
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [mongo, rabbitmq]
+    networks: [vinculacion_net]
+
+  # ✅ NUEVO: Storage
+  storage-service:
+    container_name: ms_storage
+    build: { context: ./apps/backend/storage }
+    ports: ["3006:3006"]
+    environment:
+      - MINIO_ENDPOINT=uce_minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=adminpassword
+      - MINIO_BUCKET=vinculacion-files
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [minio, rabbitmq]
+    networks: [vinculacion_net]
+
+  location-service:
+    container_name: ms_location
+    build: { context: ./apps/backend/location }
+    ports: ["3007:3007"]
+    networks: [vinculacion_net]
+
+  # ✅ NUEVO: Validation
+  validation-service:
+    container_name: ms_validation
+    build: { context: ./apps/backend/validation }
+    ports: ["3008:3008"]
+    environment:
+      - RABBIT_HOST=uce_rabbitmq
+    depends_on: [rabbitmq]
+    networks: [vinculacion_net]
+
+  notification-service:
+    container_name: ms_notifications
+    build: { context: ./apps/backend/notification }
+    environment:
+      - RABBIT_HOST=uce_rabbitmq
+      - RABBITMQ_URL=amqp://admin:adminpassword@uce_rabbitmq:5672
+      - N8N_WEBHOOK_URL=http://vinculacion_n8n:5678/webhook/correo-vinculacion
+    depends_on: [rabbitmq, n8n]
+    networks: [vinculacion_net]
+
+  api-gateway:
+    container_name: ms_gateway
+    build: { context: ./apps/backend/api-gateway }
+    ports: ["8080:8080"]
+    environment:
+      - AUTH_URL=http://ms_auth:3000
+      - PROJECTS_URL=http://ms_projects:3001
+      - ENROLLMENT_URL=http://ms_enrollment:3002
+      - REPORTS_URL=http://ms_reports:3003
+      - AUDIT_URL=http://ms_audit:3005
+      - STORAGE_URL=http://ms_storage:3006
+      - LOCATION_HOST=ms_location
+      - VALIDATION_URL=http://ms_validation:3008
+    depends_on:
+      - auth-service
+      - projects-service
+      - enrollment-service
+      - reporting-service
+      - audit-service
+      - storage-service
+      - location-service
+      - validation-service
+    networks: [vinculacion_net]
+
 networks:
   vinculacion_net:
     driver: bridge
 
-# Volúmenes persistentes
 volumes:
   postgres_data:
   mongo_data:
   rabbitmq_data:
   n8n_data:
-  minio_data: # <--- Nuevo volumen para MinIO
+  minio_data:

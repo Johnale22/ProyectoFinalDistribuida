@@ -14,6 +14,6 @@ async function bootstrap() {
   });
 
   await app.listen();
-  console.log(`🚀 LOCATION SERVICE (gRPC) listo en puerto 3007`);
+  console.log(`🚀 LOCATION SERVICE (gRPC) listo en puerto: 0.0.0.0:3007`);
 }
 bootstrap();

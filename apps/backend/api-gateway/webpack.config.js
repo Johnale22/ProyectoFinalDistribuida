@@ -3,8 +3,12 @@ const { join } = require('path');
 
 module.exports = {
   output: {
-    path: join(__dirname, '../../dist/apps/backend/api-gateway'),
+    // ✅ VOLVEMOS A LA RUTA SIMPLE (Local)
+    path: join(__dirname, 'dist'),
     clean: true,
+    ...(process.env.NODE_ENV !== 'production' && {
+      devtoolModuleFilenameTemplate: '[absolute-resource-path]',
+    }),
   },
   plugins: [
     new NxAppWebpackPlugin({
@@ -12,10 +16,11 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      assets: ['./src/assets'], // <--- ESTO COPIA EL ARCHIVO .PROTO
+      assets: ['./src/assets'],
       optimization: false,
       outputHashing: 'none',
-      generatePackageJson: true,
+      generatePackageJson: true, // Esto ayuda a que corra independiente
+      sourceMap: true,
     }),
   ],
 };

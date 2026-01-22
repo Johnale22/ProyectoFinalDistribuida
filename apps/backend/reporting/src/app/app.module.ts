@@ -8,7 +8,7 @@ import { Report, ReportSchema } from './reporting.schema';
   imports: [
     // ✅ FIX: Conexión dinámica (En Docker usará 'uce_mongo')
     MongooseModule.forRoot(
-      process.env.MONGO_URI || 'mongodb://admin:adminpassword@localhost:27017/vinculacion_reports?authSource=admin'
+      process.env.MONGO_URI || 'mongodb://admin:adminpassword@uce_mongo:27017/vinculacion_reports?authSource=admin'
     ),
     MongooseModule.forFeature([{ name: Report.name, schema: ReportSchema }]),
   ],

@@ -82,11 +82,13 @@ async function bootstrap() {
     changeOrigin: true
   }));
 
-  // 4. REPORTING
+  // 4. REPORTS
   const REPORTS_URL = process.env.REPORTS_URL || 'http://localhost:3003';
-  app.use('/reporting', createProxyMiddleware({ 
+  app.use('/reports', createProxyMiddleware({ 
     target: REPORTS_URL, 
-    changeOrigin: true
+    changeOrigin: true,
+    // ❌ BORRA o COMENTA esta línea:
+    // pathRewrite: { '^/reports': '' } 
   }));
 
   // 5. AUDIT

@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios'; // Asegúrate de que este axios apunte al puerto 8080
+// ✅ IMPORT NUEVO: Librería de gráficos
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell 
+} from 'recharts';
 
 // --- DATOS ESTÁTICOS ---
 const FACULTADES: any = {
@@ -15,7 +20,7 @@ const MICROSERVICES = [
     { id: 'auth', name: 'Auth Service', port: 8080, endpoint: '/auth' },
     { id: 'projects', name: 'Projects Service', port: 8080, endpoint: '/projects' },
     { id: 'enrollment', name: 'Enrollment Service', port: 8080, endpoint: '/enrollment' },
-    { id: 'reports', name: 'Reporting Service', port: 8080, endpoint: '/reports' },
+    { id: 'reports', name: 'Reporting Service', port: 8080, endpoint: '/reports' }, // Nota: el endpoint de stats es /reports/stats
     { id: 'validation', name: 'Validation Service', port: 8080, endpoint: '/validation/check-eligibility' },
     { id: 'audit', name: 'Audit Service', port: 8080, endpoint: '/audit' },
     { id: 'storage', name: 'Storage Service', port: 8080, endpoint: '/storage' },
@@ -27,7 +32,10 @@ export const AdminDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('users');
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [reportStats, setReportStats] = useState<any>(null); 
+  // Inicializamos con ceros para que no falle al renderizar
+  const [reportStats, setReportStats] = useState<any>({
+    totalStudents: 0, totalProjects: 0, approvedEnrollments: 0, projectsByFaculty: {}
+  }); 
   const [serviceStatus, setServiceStatus] = useState<any>({}); 
   const [loadingHealth, setLoadingHealth] = useState(false);
 
@@ -38,24 +46,15 @@ export const AdminDashboard = () => {
   });
   const [carrerasDisponibles, setCarrerasDisponibles] = useState<string[]>([]);
 
-  // 1. CARGAR AUDITORÍA (CON PROTECCIÓN ANTI-CRASH)
+  // 1. CARGAR AUDITORÍA
   useEffect(() => {
     if (activeTab === 'audit') {
-        // Usamos la URL completa al Gateway para evitar dudas
         api.get('http://localhost:8080/audit')
            .then(res => {
-               // ✅ SEGURIDAD: Solo guardamos si es un Array real
-               if (Array.isArray(res.data)) {
-                   setAuditLogs(res.data);
-               } else {
-                   console.error("Formato inesperado en Audit:", res.data);
-                   setAuditLogs([]); // Evita pantalla blanca
-               }
+               if (Array.isArray(res.data)) setAuditLogs(res.data);
+               else setAuditLogs([]);
            })
-           .catch(err => {
-               console.error("Error cargando auditoría:", err);
-               setAuditLogs([]);
-           });
+           .catch(err => setAuditLogs([]));
     }
   }, [activeTab]);
 
@@ -75,8 +74,9 @@ export const AdminDashboard = () => {
 
   const fetchReports = async () => {
       try {
-          const res = await api.get('http://localhost:8080/reports');
-          setReportStats(res.data);
+          // ✅ CORRECCIÓN: El endpoint correcto es /reports/stats
+          const res = await api.get('http://localhost:8080/reports/stats');
+          if(res.data) setReportStats(res.data);
       } catch (error) { console.error("Error reportes:", error); }
   };
 
@@ -85,7 +85,6 @@ export const AdminDashboard = () => {
       const statuses: any = {};
       await Promise.all(MICROSERVICES.map(async (service) => {
           try {
-              // Timeout corto para no congelar la UI
               await api.get(`http://localhost:${service.port}${service.endpoint}`, { timeout: 2000 }); 
               statuses[service.id] = 'ONLINE';
           } catch (error: any) {
@@ -131,14 +130,20 @@ export const AdminDashboard = () => {
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
-  // Helper para formatear fechas sin romper la app
   const formatDate = (dateString: string) => {
-      try {
-          return new Date(dateString).toLocaleString();
-      } catch (e) {
-          return dateString;
-      }
+      try { return new Date(dateString).toLocaleString(); } catch (e) { return dateString; }
   };
+
+  // --- PREPARACIÓN DE DATOS PARA GRÁFICAS (Recharts) ---
+  const pieData = [
+    { name: 'Aprobados', value: reportStats.approvedEnrollments || 0 },
+    { name: 'Otros/Pendientes', value: (reportStats.totalStudents || 0) - (reportStats.approvedEnrollments || 0) }
+  ];
+  const barData = Object.keys(reportStats.projectsByFaculty || {}).map(key => ({
+    name: key,
+    proyectos: reportStats.projectsByFaculty[key]
+  }));
+  const COLORS = ['#0088FE', '#FFBB28', '#FF8042', '#00C49F'];
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f6f9' }}>
@@ -192,12 +197,11 @@ export const AdminDashboard = () => {
            </div>
         )}
 
-        {/* 2. PESTAÑA: AUDITORÍA (CON BLINDAJE) */}
+        {/* 2. PESTAÑA: AUDITORÍA */}
         {activeTab === 'audit' && (
           <div>
             <SectionTitle title="Logs de Auditoría (Redis)" />
             <div style={cardStyle}>
-                {/* Doble chequeo: Que sea array Y que tenga elementos */}
                 {!Array.isArray(auditLogs) || auditLogs.length === 0 ? (
                     <div style={{textAlign:'center', padding:'20px'}}>
                         <p style={{color:'#666', marginBottom:'10px'}}>⏳ No hay registros disponibles.</p>
@@ -226,7 +230,6 @@ export const AdminDashboard = () => {
                                         </span>
                                     </td>
                                     <td style={{padding:'12px', color:'#555'}}>
-                                        {/* Mostramos JSON de forma segura */}
                                         {log.data ? JSON.stringify(log.data).slice(0, 60) + (JSON.stringify(log.data).length > 60 ? '...' : '') : '-'}
                                     </td>
                                 </tr>
@@ -238,7 +241,7 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 3. PESTAÑA: REPORTES */}
+        {/* 3. PESTAÑA: REPORTES (ACTUALIZADA CON GRÁFICAS) */}
         {activeTab === 'reports' && (
             <div>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -246,11 +249,59 @@ export const AdminDashboard = () => {
                     <button onClick={fetchReports} style={{background:'none', border:'1px solid #ccc', padding:'5px 15px', borderRadius:'4px', cursor:'pointer'}}>🔄 Actualizar</button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                {/* TARJETAS DE RESUMEN */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
                     <StatCard title="Total Estudiantes" value={reportStats?.totalStudents || 0} color="#2196f3" />
-                    <StatCard title="Inscripciones" value={reportStats?.totalEnrollments || 0} color="#4caf50" />
-                    <StatCard title="Aprobados" value={reportStats?.approvedEnrollments || 0} color="#ff9800" />
-                    <StatCard title="Horas Totales" value={reportStats?.totalHours || 0} color="#9c27b0" />
+                    <StatCard title="Proyectos Totales" value={reportStats?.totalProjects || 0} color="#4caf50" />
+                    <StatCard title="Inscripciones Aprobadas" value={reportStats?.approvedEnrollments || 0} color="#ff9800" />
+                    {/* Placeholder para un dato futuro, o podemos repetir */}
+                    <StatCard title="Reportes Generados" value="Activo" color="#9c27b0" />
+                </div>
+
+                {/* GRÁFICAS */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    {/* GRÁFICA DE BARRAS */}
+                    <div style={cardStyle}>
+                        <h3 style={{fontSize:'16px', color:'#555', marginBottom:'20px'}}>Proyectos por Facultad</h3>
+                        <div style={{height:'300px'}}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={barData.length > 0 ? barData : [{name:'Sin datos', proyectos:0}]}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Bar dataKey="proyectos" fill="#004a87" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* GRÁFICA DE PASTEL */}
+                    <div style={cardStyle}>
+                        <h3 style={{fontSize:'16px', color:'#555', marginBottom:'20px'}}>Progreso de Aprobaciones</h3>
+                        <div style={{height:'300px'}}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
                 </div>
             </div>
         )}

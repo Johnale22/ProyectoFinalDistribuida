@@ -3,7 +3,7 @@ const { join } = require('path');
 
 module.exports = {
   output: {
-    path: join(__dirname, '../../dist/apps/backend/validation'),
+    path: join(__dirname, 'dist'),
     clean: true,
   },
   plugins: [
@@ -12,7 +12,7 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      // assets: ['./src/assets'],  <--- BORRA O COMENTA ESTA LÍNEA
+      assets: [], 
       optimization: false,
       outputHashing: 'none',
       generatePackageJson: true,

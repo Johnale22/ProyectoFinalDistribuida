@@ -62,35 +62,53 @@ async function bootstrap() {
 
   // 1. AUTH
   const AUTH_URL = process.env.AUTH_URL || 'http://localhost:3000';
-  app.use('/auth', createProxyMiddleware({ target: AUTH_URL, changeOrigin: true }));
-
-  // 2. PROJECTS
-  const PROJECTS_URL = process.env.PROJECTS_URL || 'http://localhost:3001';
-  app.use('/projects', createProxyMiddleware({ target: PROJECTS_URL, changeOrigin: true }));
-
-  // 3. ENROLLMENT (Con Rewrite)
-  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || 'http://localhost:3002';
-  app.use('/enrollment', createProxyMiddleware({ 
-    target: ENROLLMENT_URL, 
-    changeOrigin: true, 
-    pathRewrite: { '^/enrollment': '/enrollments' } 
+  app.use('/auth', createProxyMiddleware({ 
+    target: AUTH_URL, 
+    changeOrigin: true,
+    pathRewrite: { '^/auth': '' } // 👈 ESTO ES LA MAGIA
   }));
 
-  // 4. REPORTS
+  // 2. PROJECTS (Agrega pathRewrite)
+  const PROJECTS_URL = process.env.PROJECTS_URL || 'http://localhost:3001';
+  app.use('/projects', createProxyMiddleware({ 
+    target: PROJECTS_URL, 
+    changeOrigin: true
+  }));
+
+  // 3. ENROLLMENT
+  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || 'http://localhost:3002';
+  app.use('/enrollment', createProxyMiddleware({
+    target: ENROLLMENT_URL, 
+    changeOrigin: true
+  }));
+
+  // 4. REPORTING
   const REPORTS_URL = process.env.REPORTS_URL || 'http://localhost:3003';
-  app.use('/reports', createProxyMiddleware({ target: REPORTS_URL, changeOrigin: true }));
+  app.use('/reporting', createProxyMiddleware({ 
+    target: REPORTS_URL, 
+    changeOrigin: true
+  }));
 
   // 5. AUDIT
   const AUDIT_URL = process.env.AUDIT_URL || 'http://localhost:3005';
   app.use('/audit', createProxyMiddleware({ target: AUDIT_URL, changeOrigin: true }));
 
-  // 6. STORAGE
+  // 6. STORAGE (Gestión de archivos)
   const STORAGE_URL = process.env.STORAGE_URL || 'http://localhost:3006';
-  app.use('/storage', createProxyMiddleware({ target: STORAGE_URL, changeOrigin: true }));
+  app.use('/storage', createProxyMiddleware({ 
+    target: STORAGE_URL, 
+    changeOrigin: true,
+    // ❌ BORRA o COMENTA el pathRewrite:
+    // pathRewrite: { '^/storage': '' } 
+  }));
 
   // 7. VALIDATION
   const VALIDATION_URL = process.env.VALIDATION_URL || 'http://localhost:3008';
-  app.use('/validation', createProxyMiddleware({ target: VALIDATION_URL, changeOrigin: true }));
+  app.use('/validation', createProxyMiddleware({ 
+    target: VALIDATION_URL, 
+    changeOrigin: true,
+    pathRewrite: { '^/validation': '' } // ✅ Agregamos Rewrite
+  }));
 
   // Endpoint gRPC manual
   app.use('/location/calc', express.json(), (req: Request, res: Response, next: NextFunction) => {

@@ -1,21 +1,18 @@
-# USAMOS UNA IMAGEN LIGERA DE NODE
+# USAMOS NODE LIGERO
 FROM node:18-alpine
 
-# CREAMOS LA CARPETA DE LA APP
 WORKDIR /app
 
-# COPIAMOS EL package.json GENERADO POR TU BUILD
-# (Asegúrate de haber hecho 'nx build api-gateway' antes)
+# COPIAMOS EL PACKAGE.JSON
 COPY dist/package.json ./
 
-# INSTALAMOS SOLO LAS DEPENDENCIAS DE PRODUCCIÓN (Rápido y ligero)
-RUN npm install --omit=dev
+# ⚠️ AQUÍ ESTÁ EL TRUCO: 
+# Instalamos las dependencias Y ADEMÁS instalamos 'pg' explícitamente
+RUN npm install --omit=dev && npm install pg
 
-# COPIAMOS EL CÓDIGO YA COMPILADO (La carpeta dist)
+# COPIAMOS EL CÓDIGO
 COPY dist/ .
 
-# EXPONEMOS EL PUERTO (Cambia esto según el microservicio: 3000, 3001, etc.)
 EXPOSE 3000
 
-# EJECUTAMOS LA APP
 CMD ["node", "main.js"]

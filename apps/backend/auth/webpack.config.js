@@ -3,11 +3,9 @@ const { join } = require('path');
 
 module.exports = {
   output: {
-    path: join(__dirname, 'dist'),
+    // ✅ ESTO ES LO VITAL: Fuerza a guardar en la carpeta del microservicio
+    path: join(__dirname, 'dist'), 
     clean: true,
-    ...(process.env.NODE_ENV !== 'production' && {
-      devtoolModuleFilenameTemplate: '[absolute-resource-path]',
-    }),
   },
   plugins: [
     new NxAppWebpackPlugin({
@@ -15,11 +13,10 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      assets: ['./src/assets'],
+      assets: ['./src/assets'], // (Ponlo vacío [] si no tienes carpeta 'assets' en el src)
       optimization: false,
       outputHashing: 'none',
-      generatePackageJson: false,
-      sourceMap: true,
+      generatePackageJson: true,
     }),
   ],
 };

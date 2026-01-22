@@ -6,8 +6,10 @@ import { Report, ReportSchema } from './reporting.schema';
 
 @Module({
   imports: [
-    // Base de datos SOLO para reportes (CQRS Read Side)
-    MongooseModule.forRoot('mongodb://admin:adminpassword@localhost:27017/vinculacion_reports?authSource=admin'),
+    // ✅ FIX: Conexión dinámica (En Docker usará 'uce_mongo')
+    MongooseModule.forRoot(
+      process.env.MONGO_URI || 'mongodb://admin:adminpassword@localhost:27017/vinculacion_reports?authSource=admin'
+    ),
     MongooseModule.forFeature([{ name: Report.name, schema: ReportSchema }]),
   ],
   controllers: [AppController],

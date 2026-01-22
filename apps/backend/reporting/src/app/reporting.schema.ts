@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type ReportDocument = Report & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Report {
   @Prop({ default: 0 })
   totalStudents: number;

@@ -8,7 +8,7 @@ WORKDIR /app
 COPY dist/package.json ./
 
 # 4. Instalamos solo dependencias de producción (Rápido y ligero)
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm install pg
 
 # 5. Copiamos TODO el contenido de la carpeta dist (incluye main.js y assets/)
 COPY dist/ .

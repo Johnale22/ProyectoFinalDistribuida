@@ -12,13 +12,10 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: adminpassword
       POSTGRES_DB: vinculacion_db
-    ports:
-      - '5432:5432'
+    ports: ['5432:5432']
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - vinculacion_net
+    networks: [vinculacion_net]
 
   mongo:
     image: mongo:6.0
@@ -27,12 +24,10 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: adminpassword
-    ports:
-      - '27017:27017'
+    ports: ['27017:27017']
     volumes:
       - mongo_data:/data/db
-    networks:
-      - vinculacion_net
+    networks: [vinculacion_net]
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -41,60 +36,40 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: adminpassword
-    ports:
-      - '5672:5672'
-      - '15672:15672'
+    ports: ['5672:5672', '15672:15672']
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - vinculacion_net
+    networks: [vinculacion_net]
 
   n8n:
     image: n8nio/n8n
     container_name: vinculacion_n8n
     restart: always
-    ports:
-      - "5678:5678"
+    ports: ["5678:5678"]
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin
     volumes:
       - n8n_data:/home/node/.n8n
-    networks:
-      - vinculacion_net
+    networks: [vinculacion_net]
 
   minio:
     image: minio/minio
-    container_name: uce_minio
+    # ✅ CAMBIO CLAVE: Nombre sin guiones bajos para que el SDK lo acepte
+    container_name: uceminio
     restart: always
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    ports: ["9000:9000", "9001:9001"]
     environment:
       MINIO_ROOT_USER: "admin"
       MINIO_ROOT_PASSWORD: "adminpassword"
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
-    networks:
-      - vinculacion_net
+    networks: [vinculacion_net]
 
   # =========================================
-  # 💻 FRONTEND (React)
-  # =========================================
-  frontend:
-    container_name: ms_frontend
-    build:
-      context: . # Contexto en la raíz para que Nx pueda construir
-      dockerfile: apps/frontend/web/Dockerfile
-    ports:
-      - "80:80" # Accedes en el navegador como http://localhost
-    networks:
-      - vinculacion_net
-
-  # =========================================
-  # 🚀 MICROSERVICIOS BACKEND
+  # 🚀 MICROSERVICIOS
   # =========================================
 
   auth-service:
@@ -103,21 +78,19 @@ services:
     ports: ["3000:3000"]
     environment:
       - DB_HOST=uce_postgres
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASS=adminpassword
-      - DB_NAME=vinculacion_db
       - RABBIT_HOST=uce_rabbitmq
     depends_on: [postgres, rabbitmq]
     networks: [vinculacion_net]
 
-  projects-service:
+  project-service:
     container_name: ms_projects
     build: { context: ./apps/backend/projects }
     ports: ["3001:3001"]
     environment:
+      - DB_HOST=uce_postgres
+      - DB_NAME=vinculacion_db
       - RABBIT_HOST=uce_rabbitmq
-    depends_on: [rabbitmq]
+    depends_on: [rabbitmq, postgres]
     networks: [vinculacion_net]
 
   enrollment-service:
@@ -130,14 +103,14 @@ services:
     depends_on: [mongo, rabbitmq]
     networks: [vinculacion_net]
 
-  # ✅ NUEVO: Reporting
   reporting-service:
-    container_name: ms_reports
+    container_name: ms_reporting
     build: { context: ./apps/backend/reporting }
     ports: ["3003:3003"]
     environment:
+      - MONGO_URI=mongodb://admin:adminpassword@uce_mongo:27017/vinculacion_reports?authSource=admin
       - RABBIT_HOST=uce_rabbitmq
-    depends_on: [rabbitmq]
+    depends_on: [rabbitmq, mongo]
     networks: [vinculacion_net]
 
   audit-service:
@@ -150,17 +123,16 @@ services:
     depends_on: [mongo, rabbitmq]
     networks: [vinculacion_net]
 
-  # ✅ NUEVO: Storage
   storage-service:
     container_name: ms_storage
     build: { context: ./apps/backend/storage }
     ports: ["3006:3006"]
     environment:
-      - MINIO_ENDPOINT=uce_minio
-      - MINIO_PORT=9000
+      # ✅ CAMBIO 1: Apuntamos al contenedor 'uceminio'
+      - MINIO_ENDPOINT=uceminio
+      # ✅ CAMBIO 2: Credenciales deben ser iguales a las de MinIO (admin/adminpassword)
       - MINIO_ACCESS_KEY=admin
       - MINIO_SECRET_KEY=adminpassword
-      - MINIO_BUCKET=vinculacion-files
       - RABBIT_HOST=uce_rabbitmq
     depends_on: [minio, rabbitmq]
     networks: [vinculacion_net]
@@ -171,7 +143,6 @@ services:
     ports: ["3007:3007"]
     networks: [vinculacion_net]
 
-  # ✅ NUEVO: Validation
   validation-service:
     container_name: ms_validation
     build: { context: ./apps/backend/validation }
@@ -182,13 +153,12 @@ services:
     networks: [vinculacion_net]
 
   notification-service:
-    container_name: ms_notifications
+    container_name: ms_notification
     build: { context: ./apps/backend/notification }
     environment:
       - RABBIT_HOST=uce_rabbitmq
       - RABBITMQ_URL=amqp://admin:adminpassword@uce_rabbitmq:5672
-      - N8N_WEBHOOK_URL=http://vinculacion_n8n:5678/webhook/correo-vinculacion
-    depends_on: [rabbitmq, n8n]
+    depends_on: [rabbitmq]
     networks: [vinculacion_net]
 
   api-gateway:
@@ -199,20 +169,28 @@ services:
       - AUTH_URL=http://ms_auth:3000
       - PROJECTS_URL=http://ms_projects:3001
       - ENROLLMENT_URL=http://ms_enrollment:3002
-      - REPORTS_URL=http://ms_reports:3003
+      - REPORTS_URL=http://ms_reporting:3003
       - AUDIT_URL=http://ms_audit:3005
       - STORAGE_URL=http://ms_storage:3006
       - LOCATION_HOST=ms_location
       - VALIDATION_URL=http://ms_validation:3008
     depends_on:
       - auth-service
-      - projects-service
+      - project-service
       - enrollment-service
       - reporting-service
       - audit-service
       - storage-service
       - location-service
       - validation-service
+    networks: [vinculacion_net]
+
+  frontend:
+    container_name: ms_frontend
+    build:
+      context: . 
+      dockerfile: apps/frontend/web/Dockerfile
+    ports: ["80:80"]
     networks: [vinculacion_net]
 
 networks:

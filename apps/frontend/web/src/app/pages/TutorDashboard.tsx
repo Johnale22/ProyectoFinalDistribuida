@@ -10,14 +10,12 @@ export const TutorDashboard = () => {
 
   const logout = () => { localStorage.clear(); navigate('/'); };
 
-  // CARGAR SOLICITUDES (Corregido a Puerto 8080 y con Array Check)
+  // 1. CARGAR SOLICITUDES PENDIENTES
   useEffect(() => {
     if (activeTab === 'requests') {
-        // ✅ USAR GATEWAY (8080)
         fetch('http://localhost:8080/enrollment/pending')
           .then(res => res.json())
           .then(data => {
-              // ✅ PROTECCIÓN PANTALLA BLANCA
               if(Array.isArray(data)) setRequests(data);
               else { console.error("Error formato:", data); setRequests([]); }
           })
@@ -25,12 +23,13 @@ export const TutorDashboard = () => {
     }
   }, [activeTab]);
 
-  // CARGAR APROBADOS
+  // 2. CARGAR APROBADOS (PARA VER DOCUMENTOS)
   useEffect(() => {
     if (activeTab === 'hours') {
         fetch('http://localhost:8080/enrollment/approved') 
           .then(res => res.json())
           .then(data => {
+              // Filtramos para asegurar que es un array
               if(Array.isArray(data)) setApprovedStudents(data);
               else setApprovedStudents([]);
           })
@@ -66,12 +65,14 @@ export const TutorDashboard = () => {
       </nav>
 
       <div style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        
+        {/* === PESTAÑA 1: SOLICITUDES === */}
         {activeTab === 'requests' && (
           <div>
             <SectionTitle title="Solicitudes de Inscripción" />
             <div style={cardStyle}>
                 {requests.length === 0 ? (
-                    <EmptyState message="📭 No tienes solicitudes o hubo un error de conexión." />
+                    <EmptyState message="📭 No tienes solicitudes pendientes." />
                 ) : (
                     <table style={{width:'100%', borderCollapse:'collapse'}}>
                         <thead>
@@ -96,12 +97,59 @@ export const TutorDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* === PESTAÑA 2: DOCUMENTOS (NUEVA SECCIÓN) === */}
+        {activeTab === 'hours' && (
+          <div>
+            <SectionTitle title="Documentos Recibidos" />
+            <div style={cardStyle}>
+                {approvedStudents.length === 0 ? (
+                    <EmptyState message="📭 No hay estudiantes aprobados aún." />
+                ) : (
+                    <table style={{width:'100%', borderCollapse:'collapse'}}>
+                        <thead>
+                            <tr style={{borderBottom:'2px solid #eee', textAlign:'left'}}>
+                                <th style={thStyle}>Estudiante</th>
+                                <th style={thStyle}>Proyecto</th>
+                                <th style={thStyle}>Documento Adjunto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {approvedStudents.map((r: any) => (
+                                <tr key={r._id} style={{borderBottom:'1px solid #f0f0f0'}}>
+                                    <td style={{padding:'15px'}}>{r.studentName}</td>
+                                    <td style={{padding:'15px'}}>{r.projectTitle}</td>
+                                    <td style={{padding:'15px'}}>
+                                        {r.reportUrl ? (
+                                            <a 
+                                                href={r.reportUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                style={{...actionBtn, background:'#007bff', textDecoration:'none', display:'inline-block'}}
+                                            >
+                                                📄 Ver Archivo
+                                            </a>
+                                        ) : (
+                                            <span style={{color:'#999', fontSize:'13px', fontStyle:'italic'}}>
+                                                Pendiente de subir
+                                            </span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
 
-// Componentes auxiliares (Header, NavButton, etc...) se mantienen igual que tu archivo original
+// --- COMPONENTES AUXILIARES (Sin cambios) ---
 const Header = ({ user, logout, subtitle }: any) => ( <div style={{ background: 'white', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}><div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ fontSize: '28px', fontWeight: 'bold', color: '#004a87', fontStyle: 'italic', fontFamily: 'serif' }}>UCE</div><div style={{ borderLeft: '1px solid #ccc', paddingLeft: '15px' }}><h2 style={{ fontSize: '18px', margin: 0, color: '#0056b3' }}>Sistema Académico</h2><small style={{ color: '#666' }}>{subtitle}</small></div></div><div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '14px' }}><span style={{ fontWeight: 'bold', color: '#555' }}>{user}</span><button onClick={logout} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Salir</button></div></div> );
 const NavButton = ({ label, active, onClick }: any) => ( <button onClick={onClick} style={{ background: 'none', border: 'none', color: 'white', opacity: active ? 1 : 0.7, borderBottom: active ? '2px solid white' : '2px solid transparent', fontWeight: active ? 'bold' : 'normal', cursor: 'pointer', padding: '13px 0', fontSize: '14px' }}>{label}</button> );
 const SectionTitle = ({ title }: any) => ( <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}><div style={{ width: '4px', height: '24px', background: '#d90000', marginRight: '10px' }}></div><h2 style={{ fontSize: '18px', color: '#333', margin: 0 }}>{title}</h2></div> );

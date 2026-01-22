@@ -3,11 +3,9 @@ const { join } = require('path');
 
 module.exports = {
   output: {
+    // ✅ ESTA LÍNEA ES LA CLAVE: Guarda el 'dist' dentro de la carpeta del servicio
     path: join(__dirname, 'dist'),
     clean: true,
-    ...(process.env.NODE_ENV !== 'production' && {
-      devtoolModuleFilenameTemplate: '[absolute-resource-path]',
-    }),
   },
   plugins: [
     new NxAppWebpackPlugin({
@@ -15,11 +13,10 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      assets: ['./src/assets'],
+      assets: ['./src/assets'], // Si da error en algún servicio que no tenga assets, borra esta línea
       optimization: false,
       outputHashing: 'none',
-      generatePackageJson: false,
-      sourceMap: true,
+      generatePackageJson: true,
     }),
   ],
 };

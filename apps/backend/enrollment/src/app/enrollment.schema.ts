@@ -3,12 +3,18 @@ import { HydratedDocument } from 'mongoose';
 
 export type EnrollmentDocument = HydratedDocument<Enrollment>;
 
-@Schema()
+@Schema({ timestamps: true }) // ✅ timestamps: true agrega createdAt y updatedAt automáticos
 export class Enrollment {
-  @Prop() studentName: string;
+  // 🚨 CAMPO OBLIGATORIO: Identificador único del estudiante (ej: "admin", "u123")
+  @Prop({ required: true }) 
+  studentId: string; 
+
+  @Prop() studentName: string; // Nombre legible (ej: "Juan Perez")
   @Prop() projectId: number;
   @Prop() projectTitle: string;
-  @Prop({ default: 'PENDING' }) status: string;
+  @Prop({ default: 'PENDING' }) status: string; // PENDING, APPROVED, REJECTED
+  
+  // ✅ AQUÍ SE GUARDARÁ EL LINK DE MINIO
   @Prop() reportUrl: string;
 }
 

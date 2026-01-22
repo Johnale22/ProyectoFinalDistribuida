@@ -9,7 +9,7 @@ WORKDIR /app
 COPY dist/package.json ./
 
 # INSTALAMOS SOLO LAS DEPENDENCIAS DE PRODUCCIÓN (Rápido y ligero)
-RUN npm install --omit=dev
+RUN npm install --omit=dev --ignore-scripts
 
 # COPIAMOS EL CÓDIGO YA COMPILADO (La carpeta dist)
 COPY dist/ .

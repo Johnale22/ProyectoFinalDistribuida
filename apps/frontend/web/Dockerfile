@@ -1,22 +1,15 @@
-# ETAPA 1: Construcción
 FROM node:18-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
-
-# ⚠️ OJO AQUÍ: Intenta construir usando el nombre 'web' o 'frontend-web'
-# Si este comando falla, prueba cambiar 'web' por 'frontend'
+# Usamos el nombre real
 RUN npx nx build web-client
 
-# ETAPA 2: Servidor Web (Nginx)
 FROM nginx:alpine
+# Copiamos desde la ruta que genera Vite/Nx dentro del proyecto
+COPY --from=build /app/apps/frontend/web/dist /usr/share/nginx/html
 
-# ✅ CAMBIO AQUÍ: La ruta del dist suele incluir la estructura de carpetas
-# Copiamos desde dist/apps/frontend/web hacia Nginx
-COPY --from=build /app/dist/apps/frontend/web /usr/share/nginx/html
-
-# Configuración Nginx para React Router
 RUN echo 'server { \
     listen 80; \
     location / { \
@@ -25,6 +18,5 @@ RUN echo 'server { \
         try_files $uri $uri/ /index.html; \
     } \
 }' > /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

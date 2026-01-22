@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('enrollments')
+@Controller('enrollment') // Singular, coincide con el Gateway
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -30,13 +30,15 @@ export class AppController {
     return this.appService.getApproved();
   }
 
+  // ✅ ENDPOINT PARA GUARDAR EL LINK
+  // Recibe { studentId: "admin", reportUrl: "http://..." }
   @Post('update-report')
   async updateReport(@Body() body: { studentId: string; reportUrl: string }) {
     try {
         const result = await this.appService.updateReport(body.studentId, body.reportUrl);
         return { success: true, data: result };
     } catch (error) {
-        return { success: false, message: 'No tienes una inscripción aprobada activa.' };
+        return { success: false, message: error.message || 'Error al guardar reporte.' };
     }
   }
 }

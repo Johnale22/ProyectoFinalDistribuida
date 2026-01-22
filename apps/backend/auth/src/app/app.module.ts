@@ -11,14 +11,15 @@ import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
-    // 1. Base de Datos (INTACTA)
+    // 1. Base de Datos (CORREGIDA PARA DOCKER)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
+      host: process.env.DB_HOST || 'localhost', // Docker usa 'uce_postgres'
       port: 5432,
       username: 'admin',
       password: 'adminpassword',
-      database: 'vinculacion_auth',
+      // ⚠️ CAMBIO CRÍTICO: Usamos la DB que crea Docker por defecto o variable de entorno
+      database: process.env.DB_NAME || 'vinculacion_db', 
       autoLoadEntities: true,
       synchronize: true,
     }),
@@ -30,13 +31,15 @@ import { APP_GUARD } from '@nestjs/core';
       signOptions: { expiresIn: '1d' },
     }),
 
-    // 3. Cliente RabbitMQ (INTACTO)
+    // 3. Cliente RabbitMQ (DINÁMICO)
     ClientsModule.register([
       {
         name: 'AUDIT_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: ['amqp://admin:adminpassword@localhost:5672'],
+          // ⚠️ CAMBIO CRÍTICO: Inyectamos el host dinámicamente
+          // Si estás en Docker usa 'uce_rabbitmq', si estás local usa 'localhost'
+          urls: [`amqp://admin:adminpassword@${process.env.RABBIT_HOST || 'localhost'}:5672`],
           queue: 'audit_queue',
           queueOptions: { durable: false },
         },

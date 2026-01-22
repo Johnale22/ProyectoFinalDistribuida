@@ -7,7 +7,7 @@ WORKDIR /app
 COPY dist/package.json ./
 
 # 3. Instalamos solo dependencias necesarias
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm install pg
 
 # 4. Copiamos el código compilado
 COPY dist/ .

@@ -5,18 +5,19 @@ import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 1. Conectar a RabbitMQ (Para escuchar eventos)
+  // 1. Conectar a RabbitMQ (Usando variables de entorno)
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: ['amqp://admin:adminpassword@localhost:5672'],
+      // ✅ FIX: Usa la variable RABBIT_HOST (que será 'uce_rabbitmq' en Docker)
+      urls: [`amqp://admin:adminpassword@${process.env.RABBIT_HOST || 'localhost'}:5672`],
       queue: 'reporting_queue',
       queueOptions: { durable: false },
     },
   });
 
-  // 2. Iniciar servidor HTTP en 3003
-  app.enableCors();
+  // 2. Configurar HTTP
+  app.enableCors({ origin: '*' }); // Habilitar CORS
   await app.startAllMicroservices();
   await app.listen(3003);
   

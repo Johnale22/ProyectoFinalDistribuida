@@ -2,13 +2,13 @@ import { Controller, Get } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { AppService } from './app.service';
 
-// --- DEJAR VACÍO ---
-// El Gateway ya convirtió "/reports" en "/"
-@Controller() 
+// ✅ MEJOR PRÁCTICA: Usamos el prefijo 'reports'.
+// Asegúrate de quitar el 'pathRewrite' en el Gateway para este servicio.
+@Controller('reports') 
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
+  @Get('stats') // Endpoint quedará: /reports/stats
   async getDashboardStats() {
     return this.appService.getStats();
   }

@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { Transport } from '@nestjs/microservices';
-// ✅ IMPORTAR LIBRERÍAS
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -11,26 +10,28 @@ async function bootstrap() {
   // 1. Configuración HTTP
   app.enableCors({ origin: '*' });
 
-  // ✅ 2. ACTIVAR VALIDACIÓN (Blindaje de datos)
+  // 2. Validación Global
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Borra datos extra que no estén en el DTO
-    forbidNonWhitelisted: true, // Lanza error si envían basura
+    whitelist: true,
+    forbidNonWhitelisted: true,
   }));
 
-  // ✅ 3. ACTIVAR SWAGGER (Documentación individual)
+  // 3. Swagger
   const config = new DocumentBuilder()
     .setTitle('Microservicio Projects')
-    .setDescription('Gestión de proyectos y cupos')
+    .setDescription('Gestión de proyectos')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  // 4. Configuración RabbitMQ (Esto ya lo tenías, no lo borres)
+  // ✅ 4. CONFIGURACIÓN RABBITMQ (LISTENER)
+  // Esto hace que el servicio "escuche" en la cola 'projects_queue'
   app.connectMicroservice({
     transport: Transport.RMQ,
     options: {
-      urls: ['amqp://admin:adminpassword@localhost:5672'],
+      // Usa la variable de entorno o falla a localhost (para desarrollo local)
+      urls: [`amqp://admin:adminpassword@${process.env.RABBIT_HOST || 'localhost'}:5672`],
       queue: 'projects_queue',
       queueOptions: { durable: false },
     },
@@ -38,6 +39,6 @@ async function bootstrap() {
 
   await app.startAllMicroservices();
   await app.listen(3001);
-  console.log(`🚀 PROJECTS SERVICE listo: HTTP:3001/api/docs + RabbitMQ`);
+  console.log(`🚀 PROJECTS SERVICE corriendo en puerto 3001`);
 }
 bootstrap();

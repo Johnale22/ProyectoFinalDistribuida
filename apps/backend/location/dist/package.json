@@ -1,0 +1,65 @@
+{
+  "name": "@org/location",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "location",
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "webpack-cli build",
+          "args": [
+            "--node-env=production"
+          ],
+          "cwd": "apps/backend/location"
+        },
+        "configurations": {
+          "development": {
+            "args": [
+              "--node-env=development"
+            ]
+          }
+        }
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "location:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "location:build:development"
+          },
+          "production": {
+            "buildTarget": "location:build:production"
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/microservices": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "amqp-connection-manager": "5.0.0",
+    "amqplib": "0.10.9",
+    "cache-manager": "7.2.8",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.3",
+    "ioredis": "5.9.1",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "main": "main.js"
+}

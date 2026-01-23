@@ -42,8 +42,8 @@
     "apps/*"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.972.0",
-    "@aws-sdk/lib-storage": "^3.971.0",
+    "@aws-sdk/client-s3": "3.971.0",
+    "@aws-sdk/lib-storage": "3.971.0",
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@nestjs/axios": "^4.0.1",
@@ -86,7 +86,7 @@
     "react-router-dom": "^6.29.0",
     "recharts": "^3.7.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0",
+    "rxjs": "^7.8.2",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.28"
   }

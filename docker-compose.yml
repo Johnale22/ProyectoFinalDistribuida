@@ -154,11 +154,13 @@ services:
 
   notification-service:
     container_name: ms_notification
-    build: { context: ./apps/backend/notification }
+    build: 
+      context: .
+      dockerfile: apps/backend/notification/Dockerfile 
     environment:
       - RABBIT_HOST=uce_rabbitmq
-      - RABBITMQ_URL=amqp://admin:adminpassword@uce_rabbitmq:5672
-    depends_on: [rabbitmq]
+      - N8N_WEBHOOK_URL=http://vinculacion_n8n:5678/webhook/email
+    depends_on: [rabbitmq, n8n]
     networks: [vinculacion_net]
 
   api-gateway:

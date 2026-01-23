@@ -1,17 +1,16 @@
-# 1. Usamos Node ligero
 FROM node:18-alpine
 
 WORKDIR /app
 
-# 2. Copiamos package.json del build
-COPY dist/package.json ./
+# 1. Copiamos el package.json desde la ruta REAL (dentro de notification/dist)
+# Nota: Como el contexto de Docker es la raíz (.), la ruta completa es:
+COPY apps/backend/notification/dist/package.json ./
 
-# 3. Instalamos solo dependencias necesarias
-RUN npm install --omit=dev && npm install pg
+# 2. Instalamos dependencias (incluyendo las críticas)
+RUN npm install --omit=dev && \
+    npm install reflect-metadata @nestjs/axios axios rxjs
 
-# 4. Copiamos el código compilado
-COPY dist/ .
+# 3. Copiamos el resto del código compilado
+COPY apps/backend/notification/dist/ .
 
-# El servicio de notificaciones suele ser "consumidor" (no expone puerto HTTP),
-# pero si tienes algún health check, exponlo. Si solo lee de RabbitMQ, no hace falta EXPOSE.
 CMD ["node", "main.js"]

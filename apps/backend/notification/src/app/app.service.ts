@@ -6,42 +6,29 @@ import { lastValueFrom } from 'rxjs';
 export class AppService {
   constructor(private readonly httpService: HttpService) {}
 
-  // CAMBIA ESTO POR TU URL REAL DE N8N CUANDO LO TENGAS
-  private readonly n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/correo-vinculacion';
+  // URL del Webhook (toma la variable de Docker o usa la interna por defecto)
+  private readonly n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://vinculacion_n8n:5678/webhook/email';
 
-  async sendWelcomeEmail(email: string, name: string) {
-    console.log(`🚀 Enviando datos a n8n para dar la bienvenida a: ${email}`);
+  async sendEmail(data: any) {
+    console.log(`🚀 [Notification] Reenviando a n8n: ${data.email || 'Sin email'}`);
     
     try {
-      await lastValueFrom(
+      // Enviamos el post a n8n
+      const response = await lastValueFrom(
         this.httpService.post(this.n8nWebhookUrl, {
-          type: 'WELCOME',
-          email: email,
-          name: name,
-          message: 'Bienvenido al Sistema de Vinculación UCE'
+          ...data,
+          date: new Date().toISOString(),
+          source: 'System Microservices'
         })
       );
-      console.log('✅ Webhook de n8n disparado exitosamente.');
-    } catch (error) {
-      console.error('❌ Error contactando a n8n. ¿Está prendido?', error.message);
-    }
-  }
 
-  async sendApprovalEmail(email: string, project: string) {
-    console.log(`🚀 Enviando datos a n8n para aprobación de: ${email}`);
-
-    try {
-      await lastValueFrom(
-        this.httpService.post(this.n8nWebhookUrl, {
-          type: 'APPROVAL',
-          email: email,
-          project: project,
-          message: 'Tu postulación ha sido APROBADA.'
-        })
-      );
-      console.log('✅ Webhook de n8n disparado exitosamente.');
-    } catch (error) {
-      console.error('❌ Error contactando a n8n:', error.message);
+      console.log('✅ n8n Status:', response.status);
+    } catch (error: any) { // 👈 'any' evita el error de tipado en .message
+      console.error('❌ Error n8n:', error.message);
+      
+      if (error.code === 'ECONNREFUSED') {
+        console.error('👉 Tip: Revisa que el contenedor vinculacion_n8n esté corriendo.');
+      }
     }
   }
 }

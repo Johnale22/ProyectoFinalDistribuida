@@ -1,0 +1,67 @@
+{
+  "name": "@org/storage",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "storage",
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "webpack-cli build",
+          "args": [
+            "--node-env=production"
+          ],
+          "cwd": "apps/backend/storage"
+        },
+        "configurations": {
+          "development": {
+            "args": [
+              "--node-env=development"
+            ]
+          }
+        }
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "storage:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "storage:build:development"
+          },
+          "production": {
+            "buildTarget": "storage:build:production"
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0",
+    "@grpc/grpc-js": "1.14.3",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/microservices": "11.1.12",
+    "@nestjs/platform-express": "^11.0.0",
+    "@types/multer": "1.4.13",
+    "amqp-connection-manager": "5.0.0",
+    "amqplib": "0.10.9",
+    "cache-manager": "7.2.8",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.3",
+    "ioredis": "5.9.1",
+    "multer": "^1.4.5-lts.1",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "main": "main.js"
+}

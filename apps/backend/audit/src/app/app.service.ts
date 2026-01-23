@@ -1,44 +1,30 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import Redis from 'ioredis'; // Asegúrate de tener esto
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { AuditLog, AuditDocument } from './audit.schema';
 
 @Injectable()
-export class AppService implements OnModuleInit {
-  private redis: Redis;
+export class AppService {
+  constructor(@InjectModel(AuditLog.name) private auditModel: Model<AuditDocument>) {}
 
-  onModuleInit() {
-    // Conexión a Redis Local (Puerto 6379)
-    this.redis = new Redis({
-      host: 'localhost',
-      port: 6379,
-    });
-    console.log('💾 [AUDIT] Conectado a Redis correctamente');
-  }
-
-  // --- GUARDAR (Ya te funciona, pero lo reforzamos) ---
+  // 1. Guardar un evento (Viene desde RabbitMQ)
   async logEvent(action: string, data: any) {
-    const logEntry = {
-      id: Date.now().toString(), // ID único simple
-      action,
-      data,
-      timestamp: new Date(),
-    };
+    console.log(`📝 [Audit] Guardando en Mongo: ${action}`);
     
-    // Guardamos al principio de la lista 'audit_logs'
-    await this.redis.lpush('audit_logs', JSON.stringify(logEntry));
+    const newLog = new this.auditModel({
+      action: action,
+      // Intentamos sacar el usuario del payload, si no existe ponemos 'Sistema'
+      user: data.user || data.studentId || data.username || 'Sistema',
+      data: data.payload || data, // Guardamos el resto de datos
+      ip: data.ip || 'Internal'
+    });
     
-    // Opcional: Mantener solo los últimos 100 registros para no llenar la memoria
-    await this.redis.ltrim('audit_logs', 0, 99);
-    
-    console.log(`🕵️ LOG GUARDADO: ${action}`);
-    return logEntry;
+    return newLog.save();
   }
 
-  // --- LEER (Aquí estaba el problema) ---
+  // 2. Leer historial (Para el Dashboard de Admin)
   async getLogs() {
-    // Traer todos los registros de la lista (0 a -1)
-    const rawLogs = await this.redis.lrange('audit_logs', 0, -1);
-    
-    // Convertir de texto JSON a Objetos reales
-    return rawLogs.map((log) => JSON.parse(log));
+    // Devolvemos los últimos 100 registros, ordenados del más reciente al más antiguo
+    return this.auditModel.find().sort({ timestamp: -1 }).limit(100).exec();
   }
 }

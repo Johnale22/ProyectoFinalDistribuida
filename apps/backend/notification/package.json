@@ -9,25 +9,37 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "webpack-cli build",
-          "args": ["--node-env=production"],
+          "args": [
+            "--node-env=production"
+          ],
           "cwd": "apps/backend/notification"
         },
         "configurations": {
-          "development": { "args": ["--node-env=development"] }
+          "development": {
+            "args": [
+              "--node-env=development"
+            ]
+          }
         }
       },
       "serve": {
         "continuous": true,
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
-        "dependsOn": ["build"],
+        "dependsOn": [
+          "build"
+        ],
         "options": {
           "buildTarget": "notification:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
-          "development": { "buildTarget": "notification:build:development" },
-          "production": { "buildTarget": "notification:build:production" }
+          "development": {
+            "buildTarget": "notification:build:development"
+          },
+          "production": {
+            "buildTarget": "notification:build:production"
+          }
         }
       }
     }
@@ -38,6 +50,7 @@
     "@nestjs/microservices": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "amqplib": "^0.10.3",
+    "axios": "^1.13.2",
     "nodemailer": "^6.9.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",

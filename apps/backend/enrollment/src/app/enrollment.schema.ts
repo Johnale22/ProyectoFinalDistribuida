@@ -10,6 +10,7 @@ export class Enrollment {
   studentId: string; 
 
   @Prop() studentName: string; // Nombre legible (ej: "Juan Perez")
+  @Prop() studentEmail: string; // Email del estudiante
   @Prop() projectId: number;
   @Prop() projectTitle: string;
   @Prop({ default: 'PENDING' }) status: string; // PENDING, APPROVED, REJECTED

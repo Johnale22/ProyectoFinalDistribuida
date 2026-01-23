@@ -1,3 +1,4 @@
+import 'reflect-metadata'; // 👈 OBLIGATORIO: Primera línea
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
@@ -5,15 +6,13 @@ import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Conectar a RabbitMQ
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: [process.env.RABBITMQ_URL || 'amqp://admin:adminpassword@localhost:5672'],
-      queue: 'notification_queue', // Debe coincidir con Enrollment
-      queueOptions: {
-        durable: false,
-      },
+      // Conexión a RabbitMQ usando variables de entorno o defaults de Docker
+      urls: [`amqp://admin:adminpassword@${process.env.RABBIT_HOST || 'uce_rabbitmq'}:5672`],
+      queue: 'notification_queue',
+      queueOptions: { durable: false },
     },
   });
 

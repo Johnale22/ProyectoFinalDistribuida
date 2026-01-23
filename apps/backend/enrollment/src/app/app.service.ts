@@ -29,6 +29,7 @@ export class AppService {
         ...data,
         studentId: idToUse, // ✅ Asignamos explícitamente el ID
         // Aseguramos que studentName también se guarde por si acaso
+        studentEmail: data.studentEmail,
         studentName: data.studentName || idToUse, 
         status: 'PENDING', 
         date: new Date()
@@ -65,12 +66,17 @@ export class AppService {
             date: new Date()
         });
     }
-
+    
+    console.log(`📧 Enviando notificación a: ${enrollment.studentEmail} (Estado: ${status})`);
     // BLOQUE B: Notificar siempre
     this.notificationClient.emit('notify_email', {
-        studentName: enrollment.studentName,
-        projectId: enrollment.projectId,
-        status: status
+      email: enrollment.studentEmail,  
+      studentName: enrollment.studentName,
+      project: enrollment.projectTitle || enrollment.projectId,
+      status: status,
+      message: status === 'APPROVED'
+            ? '¡Felicidades! Tu postulación ha sido aprobada.' 
+            : 'Lo sentimos, tu postulación ha sido rechazada.'
     });
 
     return { success: true };

@@ -7,7 +7,8 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @EventPattern('notify_email')
-  handleEmail(@Payload() data: any) {
-    this.appService.sendEmail(data);
+  async handleEmail(@Payload() data: any) {
+    // Recibe el evento de RabbitMQ y lo pasa al servicio
+    await this.appService.sendEmail(data);
   }
 }

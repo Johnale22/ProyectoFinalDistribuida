@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package location;
+
+service LocationService {
+  rpc CalculateDistance (LocationRequest) returns (LocationResponse);
+}
+
+message LocationRequest {
+  double lat1 = 1;
+  double lon1 = 2;
+  double lat2 = 3;
+  double lon2 = 4;
+}
+
+message LocationResponse {
+  double distance = 1;
+}

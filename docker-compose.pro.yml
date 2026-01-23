@@ -152,6 +152,15 @@ services:
     environment:
       - RABBIT_HOST=rabbitmq
 
+  ms_frontend:
+    image: johnal22/frontend-service:latest
+    container_name: ms_frontend
+    restart: always
+    ports:
+      - "80:80"  # 👈 Puerto 80 para entrar directo sin escribir :puerto
+    depends_on:
+      - ms_gateway
+      
 volumes:
   mongo_data:
   n8n_data:

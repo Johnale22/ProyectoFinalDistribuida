@@ -78,7 +78,7 @@ resource "aws_launch_template" "app_server" {
   instance_type = "t3.medium" # Recomendado para NestJS + Mongo
   
   # ⚠️ ¡ASEGÚRATE DE HABER CREADO ESTA LLAVE EN AWS PRIMERO!
-  key_name = "key-vinculacion" 
+  key_name = "vockey" 
 
   network_interfaces {
     associate_public_ip_address = true
@@ -96,7 +96,7 @@ resource "aws_launch_template" "app_server" {
               # 2. Clonar Repo
               cd /home/ubuntu
               # 👇 ¡REEMPLAZA ESTO CON LA URL DE TU GITHUB!
-              git clone https://github.com/TU_USUARIO/sistema-vinculacion.git app
+              git clone https://github.com/Johnale22/ProyectoFinalDistribuida.git app
               cd app
               
               # 3. Configurar IP Dinámica para n8n

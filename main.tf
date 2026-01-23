@@ -12,7 +12,7 @@ provider "aws" {
 }
 
 # ==========================================
-# 1. DATOS DE RED Y SISTEMA OPERATIVO
+# 1. DATA SOURCES
 # ==========================================
 data "aws_vpc" "default" {
   default = true
@@ -25,11 +25,10 @@ data "aws_subnets" "default" {
   }
 }
 
-# Buscamos Ubuntu 22.04 (Mejor compatibilidad con Docker que Amazon Linux)
+# Buscamos Ubuntu 22.04 (El mejor para Docker en Academy)
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
-
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
@@ -41,68 +40,49 @@ data "aws_ami" "ubuntu" {
 }
 
 # ==========================================
-# 2. SECURITY GROUP (Firewall)
+# 2. SECURITY GROUP (Firewall para la Instancia)
 # ==========================================
-resource "aws_security_group" "microservicios_sg" {
-  name        = "vinculacion-sg-produccion"
-  description = "Permitir trafico a todos los microservicios"
+resource "aws_security_group" "instancia_sg" {
+  name        = "vinculacion-instancia-sg"
+  description = "Security Group para las EC2 internas"
   vpc_id      = data.aws_vpc.default.id
 
-  # SSH (Puerto 22)
+  # Permitir todo el tráfico que venga DENTRO de la VPC (del Balanceador)
   ingress {
-    description = "SSH"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  # SSH (Solo para admins)
+  ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # HTTP Web (Puerto 80)
+  
+  # Permitir tráfico directo a puertos clave (opcional para debug)
   ingress {
-    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # API Gateway (Puerto 8080)
   ingress {
-    description = "Gateway"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # n8n (Puerto 5678)
   ingress {
-    description = "n8n"
     from_port   = 5678
     to_port     = 5678
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # RabbitMQ Management (Puerto 15672)
-  ingress {
-    description = "RabbitMQ Admin"
-    from_port   = 15672
-    to_port     = 15672
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Rango de Microservicios (3000 a 3010)
-  ingress {
-    description = "Microservicios Range"
-    from_port   = 3000
-    to_port     = 3010
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Salida (Egress) - Permitir todo
   egress {
     from_port   = 0
     to_port     = 0
@@ -112,56 +92,148 @@ resource "aws_security_group" "microservicios_sg" {
 }
 
 # ==========================================
-# 3. SERVIDOR (Launch Template)
+# 3. SECURITY GROUP (Para el Balanceador)
+# ==========================================
+resource "aws_security_group" "alb_sg" {
+  name        = "vinculacion-alb-sg"
+  description = "Security Group para el Load Balancer"
+  vpc_id      = data.aws_vpc.default.id
+
+  # El mundo puede ver: Web (80), Gateway (8080), n8n (5678)
+  ingress { from_port = 80; to_port = 80; protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 8080; to_port = 8080; protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 5678; to_port = 5678; protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
+
+  egress { from_port = 0; to_port = 0; protocol = "-1"; cidr_blocks = ["0.0.0.0/0"] }
+}
+
+# ==========================================
+# 4. TARGET GROUPS (Donde apunta el Balanceador)
+# ==========================================
+
+# Grupo 1: Frontend (Puerto 80 en la instancia)
+resource "aws_lb_target_group" "tg_frontend" {
+  name     = "tg-frontend"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+  health_check { path = "/"; matcher = "200"; }
+}
+
+# Grupo 2: Gateway (Puerto 8080 en la instancia)
+resource "aws_lb_target_group" "tg_gateway" {
+  name     = "tg-gateway"
+  port     = 8080
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+  health_check { path = "/api/health"; matcher = "200,404"; } # Ajusta el path si tienes uno
+}
+
+# Grupo 3: n8n (Puerto 5678 en la instancia)
+resource "aws_lb_target_group" "tg_n8n" {
+  name     = "tg-n8n"
+  port     = 5678
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+  health_check { path = "/healthz"; matcher = "200"; }
+}
+
+# ==========================================
+# 5. LOAD BALANCER (ALB)
+# ==========================================
+resource "aws_lb" "mi_alb" {
+  name               = "vinculacion-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = data.aws_subnets.default.ids
+}
+
+# Listeners (Reglas de ruteo)
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn = aws_lb.mi_alb.arn
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg_frontend.arn
+  }
+}
+
+resource "aws_lb_listener" "gateway" {
+  load_balancer_arn = aws_lb.mi_alb.arn
+  port              = "8080"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg_gateway.arn
+  }
+}
+
+resource "aws_lb_listener" "n8n" {
+  load_balancer_arn = aws_lb.mi_alb.arn
+  port              = "5678"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg_n8n.arn
+  }
+}
+
+# ==========================================
+# 6. LAUNCH TEMPLATE (El Servidor)
 # ==========================================
 resource "aws_launch_template" "app_server" {
   name_prefix   = "vinculacion-template-"
   image_id      = data.aws_ami.ubuntu.id
-  
-  # En Academy a veces limitan t3.medium. Si falla, intenta t2.large o t3.small
-  instance_type = "t3.medium"
-  
-  # CLAVE DE AWS ACADEMY (IMPORTANTE)
-  key_name = "vockey"
+  instance_type = "t3.medium" # O t2.large si tienes créditos
+  key_name      = "vockey"    # LLAVE DE ACADEMY
 
   network_interfaces {
     associate_public_ip_address = true
-    security_groups             = [aws_security_group.microservicios_sg.id]
+    security_groups             = [aws_security_group.instancia_sg.id]
   }
 
-  # Script de instalación
   user_data = base64encode(<<-EOF
               #!/bin/bash
-              # 1. Instalar Docker y Git
               apt-get update
               apt-get install -y docker.io docker-compose-plugin git
               usermod -aG docker ubuntu
 
-              # 2. Clonar Repo
               cd /home/ubuntu
-              # 👇 ¡ASEGURATE QUE ESTA URL SEA LA TUYA!
-              git clone https://github.com/TU_USUARIO/sistema-vinculacion.git app
+              # 👇 PON TU REPO REAL AQUÍ
+              git clone https://github.com/Johnale22/ProyectoFinalDistribuida.git app
               cd app
               
-              # 3. Configurar IP Dinámica para n8n
+              # Configurar IP para n8n usando el DNS del Balanceador (opcional) o IP pública
               PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
               echo "N8N_WEBHOOK_URL=http://$PUBLIC_IP:5678/webhook/email" > .env
               
-              # 4. Desplegar
+              # Desplegar
               docker compose -f docker-compose.prod.yml up -d
               EOF
   )
 }
 
 # ==========================================
-# 4. AUTO SCALING GROUP (ASG)
+# 7. AUTO SCALING GROUP (Alta Disponibilidad)
 # ==========================================
-resource "aws_autoscaling_group" "app_asg" {
+resource "aws_autoscaling_group" "mi_asg" {
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
   vpc_zone_identifier = data.aws_subnets.default.ids
   
+  # Conectamos el ASG a los 3 Target Groups
+  target_group_arns   = [
+    aws_lb_target_group.tg_frontend.arn,
+    aws_lb_target_group.tg_gateway.arn,
+    aws_lb_target_group.tg_n8n.arn
+  ]
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
   launch_template {
     id      = aws_launch_template.app_server.id
     version = "$Latest"
@@ -172,4 +244,17 @@ resource "aws_autoscaling_group" "app_asg" {
     value               = "Cluster-Vinculacion-Prod"
     propagate_at_launch = true
   }
+}
+
+# ==========================================
+# 8. OUTPUTS (Lo que verás al final)
+# ==========================================
+output "url_frontend" {
+  value = "http://${aws_lb.mi_alb.dns_name}"
+}
+output "url_gateway" {
+  value = "http://${aws_lb.mi_alb.dns_name}:8080"
+}
+output "url_n8n" {
+  value = "http://${aws_lb.mi_alb.dns_name}:5678"
 }

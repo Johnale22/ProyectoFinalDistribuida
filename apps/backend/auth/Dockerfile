@@ -4,14 +4,15 @@ FROM node:18-alpine
 WORKDIR /app
 
 # COPIAMOS EL PACKAGE.JSON
-COPY dist/package.json ./
+COPY apps/backend/auth/dist/package.json ./
 
 # ⚠️ AQUÍ ESTÁ EL TRUCO: 
 # Instalamos las dependencias Y ADEMÁS instalamos 'pg' explícitamente
 RUN npm install --omit=dev && npm install pg
 
 # COPIAMOS EL CÓDIGO
-COPY dist/ .
+COPY apps/backend/auth/dist/ .
+
 
 EXPOSE 3000
 

@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # INFRAESTRUCTURA (Imágenes Oficiales)
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: uce_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: adminpassword
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mongo:
+    image: mongo:6.0
+    container_name: uce_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: adminpassword
+    volumes:
+      - mongo_data:/data/db
+
+  n8n:
+    image: n8nio/n8n
+    container_name: vinculacion_n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      # WEBHOOK_URL se inyectará desde el servidor AWS
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # ==========================================
+  # TUS MICROSERVICIOS (johnal22)
+  # ==========================================
+  
+  ms_gateway:
+    image: johnal22/gateway-service:latest
+    container_name: ms_gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://ms_auth:3000
+      - PROJECTS_SERVICE_URL=http://ms_projects:3001
+      - ENROLLMENT_SERVICE_URL=http://ms_enrollment:3002
+      - REPORTING_SERVICE_URL=http://ms_reporting:3003
+    depends_on:
+      - ms_auth
+      - ms_enrollment
+
+  ms_auth:
+    image: johnal22/auth-service:latest
+    container_name: ms_auth
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_auth?authSource=admin
+      - RABBIT_HOST=rabbitmq
+      - JWT_SECRET=SecretKeySegura123
+
+  ms_projects:
+    image: johnal22/project-service:latest
+    container_name: ms_projects
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_projects?authSource=admin
+      - RABBIT_HOST=rabbitmq
+
+  ms_enrollment:
+    image: johnal22/enrollment-service:latest
+    container_name: ms_enrollment
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_enrollment?authSource=admin
+      - RABBIT_HOST=rabbitmq
+
+  ms_reporting:
+    image: johnal22/reporting-service:latest
+    container_name: ms_reporting
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_reporting?authSource=admin
+      - RABBIT_HOST=rabbitmq
+
+  ms_notification:
+    image: johnal22/notification-service:latest
+    container_name: ms_notification
+    restart: always
+    # No expone puertos, es un worker
+    environment:
+      - RABBIT_HOST=rabbitmq
+      # Se conecta internamente a n8n
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/email
+
+  ms_audit:
+    image: johnal22/audit-service:latest
+    container_name: ms_audit
+    restart: always
+    ports:
+      - "3005:3005"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_audit?authSource=admin
+      - RABBIT_HOST=rabbitmq
+
+  ms_storage:
+    image: johnal22/storage-service:latest
+    container_name: ms_storage
+    restart: always
+    ports:
+      - "3006:3006"
+    environment:
+      - RABBIT_HOST=rabbitmq
+
+  ms_location:
+    image: johnal22/location-service:latest
+    container_name: ms_location
+    restart: always
+    ports:
+      - "3007:3007"
+    environment:
+      - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_location?authSource=admin
+
+  ms_validation:
+    image: johnal22/validation-service:latest
+    container_name: ms_validation
+    restart: always
+    ports:
+      - "3008:3008"
+    environment:
+      - RABBIT_HOST=rabbitmq
+
+volumes:
+  mongo_data:
+  n8n_data:

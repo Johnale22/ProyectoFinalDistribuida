@@ -6,7 +6,6 @@ import { Request, Response, NextFunction } from 'express';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { join } from 'path';
-// ✅ IMPORTAR: Librerías nuevas
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 
@@ -19,13 +18,11 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ✅ SEGURIDAD: Validación Global
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
   }));
 
-  // ✅ DOCUMENTACIÓN: Swagger
   const config = new DocumentBuilder()
     .setTitle('API Gateway - Sistema Vinculación')
     .setDescription('Documentación unificada de los microservicios')
@@ -36,13 +33,11 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   // =================================================================
-  // 🌍 CONFIGURACIÓN DE IPs (AQUÍ ESTÁ EL CAMBIO)
+  // 🌍 CONFIGURACIÓN DE IPs ACTUALIZADA
   // =================================================================
   
-  // MÁQUINA 1 (Donde corre este Gateway): Usamos 'localhost'
-  // MÁQUINA 2 (Lógica y Datos): Usamos '3.235.75.182'
-  
-  const IP_MAQUINA_2 = '3.235.75.182'; 
+  // MÁQUINA 2 (Lógica y Datos) - NUEVA IP:
+  const IP_MAQUINA_2 = '34.239.179.182'; 
 
   // --- A. gRPC MAPA (LOCATION SERVICE) ---
   const PROTO_PATH = join(__dirname, 'assets/location.proto');
@@ -54,7 +49,6 @@ async function bootstrap() {
     });
     const locationProto = grpc.loadPackageDefinition(packageDefinition).location as any;
     
-    // 📍 LOCATION: Se asume que está en la MÁQUINA 2
     const LOCATION_HOST = process.env.LOCATION_HOST || IP_MAQUINA_2;
     
     locationClient = new locationProto.LocationService(
@@ -68,7 +62,7 @@ async function bootstrap() {
 
   // --- B. PROXIES REST (CONEXIÓN ENTRE MÁQUINAS) ---
 
-  // 1. AUTH (Se queda en la MÁQUINA 1 junto con el Gateway)
+  // 1. AUTH (Se queda local en Máquina 1)
   const AUTH_URL = process.env.AUTH_URL || 'http://localhost:3000';
   app.use('/auth', createProxyMiddleware({ 
     target: AUTH_URL, 
@@ -76,40 +70,40 @@ async function bootstrap() {
     pathRewrite: { '^/auth': '' } 
   }));
 
-  // 2. PROJECTS (Se va a la MÁQUINA 2) 🚀
-  const PROJECTS_URL = process.env.PROJECTS_URL || `http://3.235.75.182:3001`;
+  // 2. PROJECTS (Máquina 2)
+  const PROJECTS_URL = process.env.PROJECTS_URL || `http://${IP_MAQUINA_2}:3001`;
   app.use('/projects', createProxyMiddleware({ 
     target: PROJECTS_URL, 
     changeOrigin: true
   }));
 
-  // 3. ENROLLMENT (Se va a la MÁQUINA 2) 🚀
-  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || `http://3.235.75.182:3002`;
+  // 3. ENROLLMENT (Máquina 2)
+  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || `http://${IP_MAQUINA_2}:3002`;
   app.use('/enrollment', createProxyMiddleware({
     target: ENROLLMENT_URL, 
     changeOrigin: true
   }));
 
-  // 4. REPORTS (Se va a la MÁQUINA 2) 🚀
-  const REPORTS_URL = process.env.REPORTS_URL || `http://3.235.75.182:3003`;
+  // 4. REPORTS (Máquina 2)
+  const REPORTS_URL = process.env.REPORTS_URL || `http://${IP_MAQUINA_2}:3003`;
   app.use('/reports', createProxyMiddleware({ 
     target: REPORTS_URL, 
     changeOrigin: true,
   }));
 
-  // 5. AUDIT (Se va a la MÁQUINA 2) 🚀
-  const AUDIT_URL = process.env.AUDIT_URL || `http://3.235.75.182:3005`;
+  // 5. AUDIT (Máquina 2)
+  const AUDIT_URL = process.env.AUDIT_URL || `http://${IP_MAQUINA_2}:3005`;
   app.use('/audit', createProxyMiddleware({ target: AUDIT_URL, changeOrigin: true }));
 
-  // 6. STORAGE (Se va a la MÁQUINA 2) 🚀
-  const STORAGE_URL = process.env.STORAGE_URL || `http://3.235.75.182:3006`;
+  // 6. STORAGE (Máquina 2)
+  const STORAGE_URL = process.env.STORAGE_URL || `http://${IP_MAQUINA_2}:3006`;
   app.use('/storage', createProxyMiddleware({ 
     target: STORAGE_URL, 
     changeOrigin: true,
   }));
 
-  // 7. VALIDATION (Se va a la MÁQUINA 2) 🚀
-  const VALIDATION_URL = process.env.VALIDATION_URL || `http://3.235.75.182:3008`;
+  // 7. VALIDATION (Máquina 2)
+  const VALIDATION_URL = process.env.VALIDATION_URL || `http://${IP_MAQUINA_2}:3008`;
   app.use('/validation', createProxyMiddleware({ 
     target: VALIDATION_URL, 
     changeOrigin: true,

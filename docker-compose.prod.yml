@@ -1,5 +1,9 @@
 version: '3.8'
 
+networks:
+  app_network:
+    driver: bridge
+
 services:
   # ==========================================
   # INFRAESTRUCTURA (Imágenes Oficiales)
@@ -18,6 +22,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    networks:
+      - app_network
 
   mongo:
     image: mongo:6.0
@@ -29,6 +35,22 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: adminpassword
     volumes:
       - mongo_data:/data/db
+    networks:
+      - app_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: uce_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: vinculacion_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
 
   n8n:
     image: n8nio/n8n
@@ -43,6 +65,8 @@ services:
       - WEBHOOK_URL=${N8N_WEBHOOK_URL}
     volumes:
       - n8n_data:/home/node/.n8n
+    networks:
+      - app_network
 
   # ==========================================
   # TUS MICROSERVICIOS (johnal22)
@@ -63,6 +87,10 @@ services:
     depends_on:
       - ms_auth
       - ms_enrollment
+    networks:
+      - app_network
+    env_file:
+      - .env
 
   ms_auth:
     image: johnal22/auth-service:latest
@@ -74,6 +102,8 @@ services:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_auth?authSource=admin
       - RABBIT_HOST=rabbitmq
       - JWT_SECRET=SecretKeySegura123
+    networks:
+      - app_network
 
   ms_projects:
     image: johnal22/project-service:latest
@@ -84,6 +114,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_projects?authSource=admin
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_enrollment:
     image: johnal22/enrollment-service:latest
@@ -94,6 +126,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_enrollment?authSource=admin
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_reporting:
     image: johnal22/reporting-service:latest
@@ -104,6 +138,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_reporting?authSource=admin
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_notification:
     image: johnal22/notification-service:latest
@@ -114,6 +150,8 @@ services:
       - RABBIT_HOST=rabbitmq
       # Se conecta internamente a n8n
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/email
+    networks:
+      - app_network
 
   ms_audit:
     image: johnal22/audit-service:latest
@@ -124,6 +162,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_audit?authSource=admin
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_storage:
     image: johnal22/storage-service:latest
@@ -133,6 +173,8 @@ services:
       - "3006:3006"
     environment:
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_location:
     image: johnal22/location-service:latest
@@ -142,6 +184,8 @@ services:
       - "3007:3007"
     environment:
       - MONGO_URI=mongodb://admin:adminpassword@mongo:27017/vinculacion_location?authSource=admin
+    networks:
+      - app_network
 
   ms_validation:
     image: johnal22/validation-service:latest
@@ -151,16 +195,21 @@ services:
       - "3008:3008"
     environment:
       - RABBIT_HOST=rabbitmq
+    networks:
+      - app_network
 
   ms_frontend:
     image: johnal22/frontend-service:latest
     container_name: ms_frontend
     restart: always
     ports:
-      - "80:80"  # 👈 Puerto 80 para entrar directo sin escribir :puerto
+      - "80:80"  # Puerto 80 para entrar directo
     depends_on:
       - ms_gateway
+    networks:
+      - app_network
       
 volumes:
   mongo_data:
+  postgres_data:
   n8n_data:

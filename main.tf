@@ -12,7 +12,7 @@ provider "aws" {
 }
 
 # ==========================================
-# 1. DATA SOURCES
+# 1. DATA SOURCES (Amazon Linux)
 # ==========================================
 data "aws_vpc" "default" {
   default = true
@@ -23,32 +23,34 @@ data "aws_subnets" "default" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1f"]
+  }
 }
 
-data "aws_ami" "ubuntu" {
+# Buscamos Amazon Linux 2023
+data "aws_ami" "amazon_linux_2023" {
   most_recent = true
-  owners      = ["099720109477"]
+  owners      = ["amazon"]
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
+    values = ["al2023-ami-2023.*-x86_64"]
   }
 }
 
 # ==========================================
-# 2. SECURITY GROUPS (Expandidos línea por línea)
+# 2. SECURITY GROUPS (Expandidos)
 # ==========================================
 
-# SG para la Instancia EC2 (Donde vive Docker)
+# SG para la Instancia (Tráfico interno + SSH)
 resource "aws_security_group" "instancia_sg" {
-  name        = "vinculacion-instancia-sg-final"
-  description = "SG para el servidor Docker"
+  name        = "vinculacion-instancia-sg-linux-final"
+  description = "SG para Amazon Linux"
   vpc_id      = data.aws_vpc.default.id
 
-  # Tráfico interno total (para que el ALB hable con la EC2)
+  # Tráfico interno VPC
   ingress {
     from_port   = 0
     to_port     = 0
@@ -64,7 +66,7 @@ resource "aws_security_group" "instancia_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Rango masivo de Microservicios (3000-3010)
+  # Rango de Microservicios (3000-3010)
   ingress {
     from_port   = 3000
     to_port     = 3010
@@ -72,7 +74,7 @@ resource "aws_security_group" "instancia_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Puertos Específicos
+  # Puertos principales
   ingress {
     from_port   = 80
     to_port     = 80
@@ -101,13 +103,13 @@ resource "aws_security_group" "instancia_sg" {
   }
 }
 
-# SG para el Load Balancer (Expuesto a internet)
+# SG para el Balanceador (Público)
 resource "aws_security_group" "alb_sg" {
-  name        = "vinculacion-alb-sg-final"
-  description = "SG para el Load Balancer expuesto"
+  name        = "vinculacion-alb-sg-linux-final"
+  description = "SG para Load Balancer"
   vpc_id      = data.aws_vpc.default.id
 
-  # Reglas Principales
+  # Reglas Web
   ingress {
     from_port   = 80
     to_port     = 80
@@ -126,53 +128,11 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # Reglas Microservicios Individuales
+  
+  # Microservicios directos (3000-3010)
   ingress {
     from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3001
-    to_port     = 3001
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3002
-    to_port     = 3002
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3003
-    to_port     = 3003
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3005
-    to_port     = 3005
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3006
-    to_port     = 3006
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3007
-    to_port     = 3007
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 3008
-    to_port     = 3008
+    to_port     = 3010
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -187,199 +147,99 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # ==========================================
-# 3. TARGET GROUPS (Uno por servicio)
+# 3. TARGET GROUPS (Expandidos)
 # ==========================================
 
-# Frontend (80)
+# Frontend
 resource "aws_lb_target_group" "tg_frontend" {
-  name     = "tg-front"
+  name     = "tg-front-al"
   port     = 80
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/"
+    path     = "/"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200"
+    matcher  = "200"
   }
 }
 
-# Gateway (8080)
+# Gateway
 resource "aws_lb_target_group" "tg_gateway" {
-  name     = "tg-gateway"
+  name     = "tg-gateway-al"
   port     = 8080
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/api/health"
+    path     = "/api/health"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
+    matcher  = "200,404"
   }
 }
 
-# n8n (5678)
+# n8n
 resource "aws_lb_target_group" "tg_n8n" {
-  name     = "tg-n8n"
+  name     = "tg-n8n-al"
   port     = 5678
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/healthz"
+    path     = "/healthz"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200"
+    matcher  = "200"
   }
 }
 
-# Auth (3000)
+# Auth
 resource "aws_lb_target_group" "tg_auth" {
-  name     = "tg-auth"
+  name     = "tg-auth-al"
   port     = 3000
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/"
+    path     = "/"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
+    matcher  = "200,404"
   }
 }
 
-# Projects (3001)
+# Projects
 resource "aws_lb_target_group" "tg_projects" {
-  name     = "tg-projects"
+  name     = "tg-projects-al"
   port     = 3001
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/"
+    path     = "/"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
+    matcher  = "200,404"
   }
 }
 
-# Enrollment (3002)
+# Enrollment
 resource "aws_lb_target_group" "tg_enrollment" {
-  name     = "tg-enrollment"
+  name     = "tg-enrollment-al"
   port     = 3002
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
   health_check {
-    path = "/"
+    path     = "/"
     interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
-  }
-}
-
-# Reporting (3003)
-resource "aws_lb_target_group" "tg_reporting" {
-  name     = "tg-reporting"
-  port     = 3003
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-  health_check {
-    path = "/"
-    interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
-  }
-}
-
-# Audit (3005)
-resource "aws_lb_target_group" "tg_audit" {
-  name     = "tg-audit"
-  port     = 3005
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-  health_check {
-    path = "/"
-    interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
-  }
-}
-
-# Storage (3006)
-resource "aws_lb_target_group" "tg_storage" {
-  name     = "tg-storage"
-  port     = 3006
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-  health_check {
-    path = "/"
-    interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
-  }
-}
-
-# Location (3007)
-resource "aws_lb_target_group" "tg_location" {
-  name     = "tg-location"
-  port     = 3007
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-  health_check {
-    path = "/"
-    interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
-  }
-}
-
-# Validation (3008)
-resource "aws_lb_target_group" "tg_validation" {
-  name     = "tg-validation"
-  port     = 3008
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-  health_check {
-    path = "/"
-    interval = 60
-    timeout = 30
-    healthy_threshold = 2
-    unhealthy_threshold = 10
-    matcher = "200,404"
+    matcher  = "200,404"
   }
 }
 
 # ==========================================
-# 4. LOAD BALANCER & LISTENERS
+# 4. LOAD BALANCER & LISTENERS (Expandidos)
 # ==========================================
 resource "aws_lb" "mi_alb" {
-  name               = "vinculacion-alb-final"
+  name               = "vinculacion-alb-linux"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
   subnets            = data.aws_subnets.default.ids
 }
 
-# --- Listeners (Reglas de Enrutamiento) ---
-
-# Port 80 -> Frontend
+# Listener 80
 resource "aws_lb_listener" "l_front" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "80"
@@ -390,7 +250,7 @@ resource "aws_lb_listener" "l_front" {
   }
 }
 
-# Port 8080 -> Gateway
+# Listener 8080
 resource "aws_lb_listener" "l_gateway" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "8080"
@@ -401,7 +261,7 @@ resource "aws_lb_listener" "l_gateway" {
   }
 }
 
-# Port 5678 -> n8n
+# Listener 5678
 resource "aws_lb_listener" "l_n8n" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "5678"
@@ -412,7 +272,7 @@ resource "aws_lb_listener" "l_n8n" {
   }
 }
 
-# Port 3000 -> Auth
+# Listener 3000
 resource "aws_lb_listener" "l_auth" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "3000"
@@ -423,7 +283,7 @@ resource "aws_lb_listener" "l_auth" {
   }
 }
 
-# Port 3001 -> Projects
+# Listener 3001
 resource "aws_lb_listener" "l_projects" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "3001"
@@ -434,7 +294,7 @@ resource "aws_lb_listener" "l_projects" {
   }
 }
 
-# Port 3002 -> Enrollment
+# Listener 3002
 resource "aws_lb_listener" "l_enrollment" {
   load_balancer_arn = aws_lb.mi_alb.arn
   port              = "3002"
@@ -445,68 +305,12 @@ resource "aws_lb_listener" "l_enrollment" {
   }
 }
 
-# Port 3003 -> Reporting
-resource "aws_lb_listener" "l_reporting" {
-  load_balancer_arn = aws_lb.mi_alb.arn
-  port              = "3003"
-  protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_reporting.arn
-  }
-}
-
-# Port 3005 -> Audit
-resource "aws_lb_listener" "l_audit" {
-  load_balancer_arn = aws_lb.mi_alb.arn
-  port              = "3005"
-  protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_audit.arn
-  }
-}
-
-# Port 3006 -> Storage
-resource "aws_lb_listener" "l_storage" {
-  load_balancer_arn = aws_lb.mi_alb.arn
-  port              = "3006"
-  protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_storage.arn
-  }
-}
-
-# Port 3007 -> Location
-resource "aws_lb_listener" "l_location" {
-  load_balancer_arn = aws_lb.mi_alb.arn
-  port              = "3007"
-  protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_location.arn
-  }
-}
-
-# Port 3008 -> Validation
-resource "aws_lb_listener" "l_validation" {
-  load_balancer_arn = aws_lb.mi_alb.arn
-  port              = "3008"
-  protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_validation.arn
-  }
-}
-
 # ==========================================
-# 5. LAUNCH TEMPLATE & ASG
+# 5. LAUNCH TEMPLATE & ASG (Amazon Linux)
 # ==========================================
-
 resource "aws_launch_template" "app_server" {
-  name_prefix   = "template-final-"
-  image_id      = data.aws_ami.ubuntu.id
+  name_prefix   = "template-linux-final-"
+  image_id      = data.aws_ami.amazon_linux_2023.id
   instance_type = "t3.medium"
   key_name      = "vockey"
 
@@ -515,22 +319,45 @@ resource "aws_launch_template" "app_server" {
     security_groups             = [aws_security_group.instancia_sg.id]
   }
 
+  # SCRIPT DE INICIO (Optimizado AL2023)
   user_data = base64encode(<<-EOF
               #!/bin/bash
-              sleep 30
-              apt-get update
-              apt-get install -y docker.io docker-compose-plugin git
-              usermod -aG docker ubuntu
+              
+              # 1. SWAP
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
-              cd /home/ubuntu
-              # 👇 USA TU REPOSITORIO
+              # 2. Instalar Docker y Git (dnf es nativo de AL2023)
+              dnf update -y
+              dnf install -y docker git
+              
+              systemctl start docker
+              systemctl enable docker
+              usermod -a -G docker ec2-user
+
+              # 3. Instalar Docker Compose Manualmente
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+              
+              # 4. Desplegar App (en home de ec2-user)
+              cd /home/ec2-user
               git clone https://github.com/Johnale22/ProyectoFinalDistribuida.git app
               cd app
               
-              PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+              # Asegurar permisos
+              chown -R ec2-user:ec2-user /home/ec2-user/app
+              
+              # Obtener IP usando Token IMDSv2 (Obligatorio en AL2023)
+              TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+              PUBLIC_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4)
+              
               echo "N8N_WEBHOOK_URL=http://$PUBLIC_IP:5678/webhook/email" > .env
               
-              docker compose -f docker-compose.prod.yml up -d
+              # 5. Levantar
+              /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d
               EOF
   )
 }
@@ -541,23 +368,17 @@ resource "aws_autoscaling_group" "mi_asg" {
   min_size            = 1
   vpc_zone_identifier = data.aws_subnets.default.ids
   
-  # CONECTAMOS TODOS LOS TARGET GROUPS
   target_group_arns   = [
     aws_lb_target_group.tg_frontend.arn,
     aws_lb_target_group.tg_gateway.arn,
     aws_lb_target_group.tg_n8n.arn,
     aws_lb_target_group.tg_auth.arn,
     aws_lb_target_group.tg_projects.arn,
-    aws_lb_target_group.tg_enrollment.arn,
-    aws_lb_target_group.tg_reporting.arn,
-    aws_lb_target_group.tg_audit.arn,
-    aws_lb_target_group.tg_storage.arn,
-    aws_lb_target_group.tg_location.arn,
-    aws_lb_target_group.tg_validation.arn
+    aws_lb_target_group.tg_enrollment.arn
   ]
 
   health_check_type         = "ELB"
-  health_check_grace_period = 900 # 15 Minutos de espera
+  health_check_grace_period = 900
 
   launch_template {
     id      = aws_launch_template.app_server.id
@@ -566,11 +387,11 @@ resource "aws_autoscaling_group" "mi_asg" {
 
   tag {
     key                 = "Name"
-    value               = "Cluster-Completo-Final"
+    value               = "Cluster-AmazonLinux-Final"
     propagate_at_launch = true
   }
 }
 
-output "url_alb_base" {
+output "url_alb" {
   value = "http://${aws_lb.mi_alb.dns_name}"
 }

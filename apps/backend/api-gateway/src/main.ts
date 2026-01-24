@@ -35,6 +35,15 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // =================================================================
+  // 🌍 CONFIGURACIÓN DE IPs (AQUÍ ESTÁ EL CAMBIO)
+  // =================================================================
+  
+  // MÁQUINA 1 (Donde corre este Gateway): Usamos 'localhost'
+  // MÁQUINA 2 (Lógica y Datos): Usamos '3.235.75.182'
+  
+  const IP_MAQUINA_2 = '3.235.75.182'; 
+
   // --- A. gRPC MAPA (LOCATION SERVICE) ---
   const PROTO_PATH = join(__dirname, 'assets/location.proto');
   let locationClient: any = null;
@@ -45,11 +54,11 @@ async function bootstrap() {
     });
     const locationProto = grpc.loadPackageDefinition(packageDefinition).location as any;
     
-    // 🐳 DOCKER CHANGE: Usamos variable de entorno para el Host de Location
-    const LOCATION_HOST = process.env.LOCATION_HOST || 'localhost';
+    // 📍 LOCATION: Se asume que está en la MÁQUINA 2
+    const LOCATION_HOST = process.env.LOCATION_HOST || IP_MAQUINA_2;
     
     locationClient = new locationProto.LocationService(
-      `${LOCATION_HOST}:3007`, // Se conecta a 'location-service:3007' en Docker
+      `${LOCATION_HOST}:3007`, 
       grpc.credentials.createInsecure()
     );
     console.log(`✅ [Gateway] Cliente gRPC conectado a Location (${LOCATION_HOST}:3007)`);
@@ -57,59 +66,54 @@ async function bootstrap() {
     console.warn('⚠️ [Gateway] No se pudo cargar location.proto.');
   }
 
-  // --- B. PROXIES REST (DOCKER READY) ---
-  // Usamos variables de entorno. Si no existen, usa localhost (fallback para desarrollo local)
+  // --- B. PROXIES REST (CONEXIÓN ENTRE MÁQUINAS) ---
 
-  // 1. AUTH
+  // 1. AUTH (Se queda en la MÁQUINA 1 junto con el Gateway)
   const AUTH_URL = process.env.AUTH_URL || 'http://localhost:3000';
   app.use('/auth', createProxyMiddleware({ 
     target: AUTH_URL, 
     changeOrigin: true,
-    pathRewrite: { '^/auth': '' } // 👈 ESTO ES LA MAGIA
+    pathRewrite: { '^/auth': '' } 
   }));
 
-  // 2. PROJECTS (Agrega pathRewrite)
-  const PROJECTS_URL = process.env.PROJECTS_URL || 'http://localhost:3001';
+  // 2. PROJECTS (Se va a la MÁQUINA 2) 🚀
+  const PROJECTS_URL = process.env.PROJECTS_URL || `http://3.235.75.182:3001`;
   app.use('/projects', createProxyMiddleware({ 
     target: PROJECTS_URL, 
     changeOrigin: true
   }));
 
-  // 3. ENROLLMENT
-  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || 'http://localhost:3002';
+  // 3. ENROLLMENT (Se va a la MÁQUINA 2) 🚀
+  const ENROLLMENT_URL = process.env.ENROLLMENT_URL || `http://3.235.75.182:3002`;
   app.use('/enrollment', createProxyMiddleware({
     target: ENROLLMENT_URL, 
     changeOrigin: true
   }));
 
-  // 4. REPORTS
-  const REPORTS_URL = process.env.REPORTS_URL || 'http://localhost:3003';
+  // 4. REPORTS (Se va a la MÁQUINA 2) 🚀
+  const REPORTS_URL = process.env.REPORTS_URL || `http://3.235.75.182:3003`;
   app.use('/reports', createProxyMiddleware({ 
     target: REPORTS_URL, 
     changeOrigin: true,
-    // ❌ BORRA o COMENTA esta línea:
-    // pathRewrite: { '^/reports': '' } 
   }));
 
-  // 5. AUDIT
-  const AUDIT_URL = process.env.AUDIT_URL || 'http://localhost:3005';
+  // 5. AUDIT (Se va a la MÁQUINA 2) 🚀
+  const AUDIT_URL = process.env.AUDIT_URL || `http://3.235.75.182:3005`;
   app.use('/audit', createProxyMiddleware({ target: AUDIT_URL, changeOrigin: true }));
 
-  // 6. STORAGE (Gestión de archivos)
-  const STORAGE_URL = process.env.STORAGE_URL || 'http://localhost:3006';
+  // 6. STORAGE (Se va a la MÁQUINA 2) 🚀
+  const STORAGE_URL = process.env.STORAGE_URL || `http://3.235.75.182:3006`;
   app.use('/storage', createProxyMiddleware({ 
     target: STORAGE_URL, 
     changeOrigin: true,
-    // ❌ BORRA o COMENTA el pathRewrite:
-    // pathRewrite: { '^/storage': '' } 
   }));
 
-  // 7. VALIDATION
-  const VALIDATION_URL = process.env.VALIDATION_URL || 'http://localhost:3008';
+  // 7. VALIDATION (Se va a la MÁQUINA 2) 🚀
+  const VALIDATION_URL = process.env.VALIDATION_URL || `http://3.235.75.182:3008`;
   app.use('/validation', createProxyMiddleware({ 
     target: VALIDATION_URL, 
     changeOrigin: true,
-    pathRewrite: { '^/validation': '' } // ✅ Agregamos Rewrite
+    pathRewrite: { '^/validation': '' } 
   }));
 
   // Endpoint gRPC manual
@@ -125,6 +129,7 @@ async function bootstrap() {
   
   await app.listen(8080);
   console.log(`🚀 API GATEWAY listo en: http://localhost:8080`);
+  console.log(`📡 Conectando microservicios remotos a: ${IP_MAQUINA_2}`);
   console.log(`📄 Documentación en: http://localhost:8080/api/docs`);
 }
 bootstrap();
